@@ -14,7 +14,7 @@ export type SessionRecord =
       interrupted?: boolean;
       ts: string;
     }
-  | { kind: "meta"; ts: string; raw: { type: string } };
+  | { kind: "meta"; ts: string; raw: { type: string; gitBranch?: string } };
 
 export interface SessionRef {
   sessionId: string;
