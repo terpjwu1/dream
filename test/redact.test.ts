@@ -32,4 +32,16 @@ describe("extractJson", () => {
   it("falls back to a bare JSON document", () => {
     expect(extractJson('Here you go: [{"a":1}]')).toBe('[{"a":1}]');
   });
+
+  it("is not truncated by triple-backticks inside JSON strings (E2E regression)", () => {
+    const inner = '[{"path":"db.md","newContent":"header\\n\\n```bash\\nmake db-up\\n```\\ntail"}]';
+    const text = "Both findings point at one file.\n\n```json\n" + inner + "\n```\n";
+    expect(extractJson(text)).toBe(inner);
+    expect(JSON.parse(extractJson(text))[0].newContent).toContain("make db-up");
+  });
+
+  it("recovers a balanced document even when prose follows the fence", () => {
+    const text = 'result:\n```json\n[{"a":"x```y"}]\n```\ndone — ping me.';
+    expect(JSON.parse(extractJson(text))).toEqual([{ a: "x```y" }]);
+  });
 });

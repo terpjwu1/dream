@@ -64,12 +64,49 @@ export const charsPerTokenEstimator: TokenEstimator = {
   estimate: (text) => Math.ceil(text.length / 4),
 };
 
-/** Pull the last ```json fence (or a bare JSON document) out of agent text. */
+/**
+ * Pull the last JSON document out of agent text. Fence closings are
+ * line-anchored so triple-backticks INSIDE a JSON string (e.g. a memory file
+ * containing a code block) don't truncate the match; candidates that fail a
+ * real JSON.parse are rejected in favor of a balanced-bracket scan.
+ */
 export function extractJson(text: string): string {
-  const fences = [...text.matchAll(/```(?:json)?\s*\n([\s\S]*?)```/g)];
-  if (fences.length > 0) return fences[fences.length - 1]![1]!.trim();
-  const trimmed = text.trim();
-  const start = trimmed.search(/[[{]/);
-  if (start >= 0) return trimmed.slice(start);
-  return trimmed;
+  const candidates: string[] = [];
+  const fences = [...text.matchAll(/```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```/g)];
+  for (const fence of fences.reverse()) candidates.push(fence[1]!.trim());
+  const start = text.search(/[[{]/);
+  if (start >= 0) {
+    const balanced = scanBalancedJson(text, start);
+    if (balanced) candidates.push(balanced);
+  }
+  for (const candidate of candidates) {
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+  return candidates[0] ?? text.trim(); // let the caller surface the parse error
+}
+
+/** Find the balanced end of a JSON array/object, respecting string escapes. */
+function scanBalancedJson(text: string, start: number): string | undefined {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === "\\") i++;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') {
+      inString = true;
+    } else if (ch === "[" || ch === "{") {
+      depth++;
+    } else if (ch === "]" || ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return undefined;
 }
