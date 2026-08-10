@@ -29,4 +29,17 @@ export async function statusCommand(projectPath: string): Promise<void> {
     console.log("last run:    never");
   }
 
+  const { selectSessions } = await import("../pipeline/select.js");
+  const { selected, skippedLive } = await selectSessions(projectPath, config, state);
+  const totalKb = selected.reduce((sum, r) => sum + r.sizeBytes, 0) / 1024;
+  console.log(
+    `un-dreamed:  ${selected.length} session(s) in window (${totalKb.toFixed(0)}KB)` +
+      (skippedLive > 0 ? `, ${skippedLive} skipped as live` : ""),
+  );
+  for (const ref of selected.slice(0, 10)) {
+    console.log(
+      `  - ${ref.sessionId.slice(0, 8)}  ${ref.endedAt.toISOString().slice(0, 16)}  ${(ref.sizeBytes / 1024).toFixed(0)}KB`,
+    );
+  }
+  if (selected.length > 10) console.log(`  … and ${selected.length - 10} more`);
 }
