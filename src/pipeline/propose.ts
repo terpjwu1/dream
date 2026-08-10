@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { basename } from "node:path";
 import type { AgentRunner } from "../agents/runner.js";
 import { PROPOSER_SYSTEM, proposerPrompt } from "../agents/prompts.js";
 import type { Config } from "../config.js";
@@ -45,10 +46,11 @@ export async function generateProposals(
     try {
       const finding = byId.get(raw.findingId);
       if (!finding) throw new Error(`references unknown finding "${raw.findingId}"`);
-      if (raw.path === "MEMORY.md" || raw.path === "CHANGELOG.md") {
+      const path = normalizeProposalPath(raw.path, store.root);
+      if (path === "MEMORY.md" || path === "CHANGELOG.md") {
         throw new Error("reserved file");
       }
-      const abs = store.resolvePath(raw.path); // throws on traversal
+      const abs = store.resolvePath(path); // throws on traversal
       const exists = existsSync(abs);
       if (raw.op === "create" && exists) throw new Error("create target already exists");
       if ((raw.op === "update" || raw.op === "delete") && !exists) {
@@ -62,7 +64,7 @@ export async function generateProposals(
       }
       proposals.push({
         op: raw.op,
-        path: raw.path,
+        path,
         newContent,
         rationale: redactSecrets(raw.rationale),
         finding: redactFinding(finding),
@@ -72,6 +74,18 @@ export async function generateProposals(
     }
   }
   return { proposals, invalid };
+}
+
+/**
+ * Agents sometimes prefix paths with the store directory name they can see
+ * from their cwd (e.g. "memory/db-setup.md"). Normalize deterministically
+ * instead of failing the proposal — caught in E2E dogfooding.
+ */
+export function normalizeProposalPath(rawPath: string, storeRoot: string): string {
+  let path = rawPath.replace(/^\.\//, "");
+  const rootBase = basename(storeRoot);
+  if (path.startsWith(`${rootBase}/`)) path = path.slice(rootBase.length + 1);
+  return path;
 }
 
 /** Evidence excerpts end up in commit bodies and changelogs — redact them too. */

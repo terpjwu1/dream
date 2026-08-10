@@ -66,7 +66,8 @@ Verified findings (each cites the sessions where the pattern occurred):
 ${JSON.stringify(findings, null, 2)}
 </findings>
 
-For each finding decide: create a new memory file, update an existing one, delete a stale one, or do nothing (and say why in a "skipped" note inside rationale of a no-op — simply omit no-ops from output). Rules:
+For each finding decide: create a new memory file, update an existing one, delete a stale one, or do nothing (simply omit no-ops from output). Rules:
+- "path" is relative to the memory store ROOT (your working directory): write "db-setup.md", never "memory/db-setup.md" or "./db-setup.md".
 - Follow the store conventions EXACTLY: YAML frontmatter with name (kebab-case slug), description (one line, retrieval-worthy — this becomes the index line), metadata.type (user | feedback | project | reference), plus metadata.curatedBy: dream and metadata.evidenceSessions: [<session ids>].
 - Prefer UPDATING an existing memory over creating a near-duplicate — Read existing files first.
 - Deletions are for memories contradicted by the evidence.

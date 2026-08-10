@@ -11,7 +11,7 @@ import type {
 import { ConfigSchema } from "../src/config.js";
 import { RunBudget } from "../src/pipeline/budget.js";
 import { analyzeBatches, packBatches, stageBatch } from "../src/pipeline/analyze.js";
-import { generateProposals } from "../src/pipeline/propose.js";
+import { generateProposals, normalizeProposalPath } from "../src/pipeline/propose.js";
 import { FileMemoryStore } from "../src/memory/memoryStore.js";
 import type { Finding, SessionDigest } from "../src/types.js";
 
@@ -124,6 +124,16 @@ describe("analyzeBatches", () => {
     expect(runner.calls).toHaveLength(1); // first launch allowed, then gated
     expect(outcome.skippedForBudget).toBe(2);
     expect(budget.wasAborted()).toBe(true);
+  });
+});
+
+describe("normalizeProposalPath", () => {
+  it("strips the store-dir prefix agents add from their cwd view", () => {
+    expect(normalizeProposalPath("memory/db-setup.md", "/x/memory")).toBe("db-setup.md");
+    expect(normalizeProposalPath("./db-setup.md", "/x/memory")).toBe("db-setup.md");
+    expect(normalizeProposalPath("db-setup.md", "/x/memory")).toBe("db-setup.md");
+    // only the store's own basename is stripped, nothing else
+    expect(normalizeProposalPath("sub/db.md", "/x/memory")).toBe("sub/db.md");
   });
 });
 
