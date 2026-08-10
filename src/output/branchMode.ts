@@ -44,6 +44,9 @@ export async function applyBranchMode(
     }
   } finally {
     try {
+      // Drop any half-applied, uncommitted proposal before leaving the dream
+      // branch, so a mid-commit failure can't carry staged changes back.
+      await git(memoryDir, "reset", "--hard", "HEAD");
       await git(memoryDir, "checkout", original);
     } catch {
       console.error(

@@ -1,6 +1,6 @@
-import { mkdirSync } from "node:fs";
+import { lstatSync, mkdirSync, realpathSync } from "node:fs";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { basename, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import matter from "gray-matter";
 import type { Proposal } from "../types.js";
 
@@ -20,11 +20,32 @@ const RESERVED = new Set(["MEMORY.md", "CHANGELOG.md"]);
 export class FileMemoryStore {
   constructor(readonly root: string) {}
 
-  /** Resolve a relative memory path, rejecting traversal outside the store. */
+  /**
+   * Resolve a relative memory path, rejecting traversal outside the store —
+   * lexically AND physically (a symlink planted inside the store must not
+   * redirect writes elsewhere).
+   */
   resolvePath(relPath: string): string {
     const abs = resolve(this.root, relPath);
     if (abs !== this.root && !abs.startsWith(this.root + sep)) {
       throw new Error(`Proposal path escapes the memory store: ${relPath}`);
+    }
+    try {
+      if (lstatSync(abs).isSymbolicLink()) {
+        throw new Error(`Proposal path is a symlink: ${relPath}`);
+      }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    }
+    const parent = dirname(abs);
+    try {
+      const realParent = realpathSync(parent);
+      const realRoot = realpathSync(this.root);
+      if (realParent !== realRoot && !realParent.startsWith(realRoot + sep)) {
+        throw new Error(`Proposal path escapes the memory store via symlink: ${relPath}`);
+      }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     }
     return abs;
   }

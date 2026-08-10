@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { stateFile } from "./paths.js";
@@ -38,13 +38,44 @@ export function loadState(projectPath: string): State {
   }
 }
 
-/** Atomic write (temp file + rename) so a crash can't corrupt the watermark. */
+/** Atomic write (unique temp file + rename) so a crash can't corrupt the watermark. */
 export function saveState(projectPath: string, state: State): void {
   const path = stateFile(projectPath);
   mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.tmp`;
+  const tmp = `${path}.${process.pid}.${Math.random().toString(36).slice(2, 8)}.tmp`;
   writeFileSync(tmp, JSON.stringify(state, null, 2) + "\n", "utf8");
   renameSync(tmp, path);
+}
+
+const STALE_LOCK_MS = 60 * 60 * 1000;
+
+/**
+ * Per-project run lock (O_EXCL create). Prevents two concurrent `dream run`s
+ * from selecting and analyzing the same sessions. Returns a release function.
+ */
+export function acquireRunLock(projectPath: string): () => void {
+  const path = `${stateFile(projectPath)}.lock`;
+  mkdirSync(dirname(path), { recursive: true });
+  try {
+    writeFileSync(path, `${process.pid} ${new Date().toISOString()}\n`, { flag: "wx" });
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+    const age = Date.now() - statSync(path).mtimeMs;
+    if (age < STALE_LOCK_MS) {
+      throw new Error(
+        `another dream run appears to be active for this project (lock: ${path}). ` +
+          `If that's wrong, delete the lock file.`,
+      );
+    }
+    writeFileSync(path, `${process.pid} ${new Date().toISOString()}\n`); // steal stale lock
+  }
+  return () => {
+    try {
+      rmSync(path);
+    } catch {
+      // already gone — fine
+    }
+  };
 }
 
 /** Mark sessions analyzed after a successful (non-dry) run. */

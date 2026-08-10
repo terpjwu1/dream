@@ -133,9 +133,9 @@ export async function digestSession(
 
     // Last resort: hard clip so one monster session can never blow the batch.
     if (!fits()) {
-      markdown =
-        markdown.slice(0, opts.maxTokens * 4) +
-        "\n…[digest hard-clipped at token budget]";
+      const marker = "\n…[digest hard-clipped at token budget]";
+      const budgetChars = Math.max(0, opts.maxTokens * 4 - marker.length);
+      markdown = [...markdown.slice(0, budgetChars + 1)].slice(0, -1).join("") + marker;
     }
   }
 

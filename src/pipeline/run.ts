@@ -12,7 +12,7 @@ import type { RunReport } from "../types.js";
 import { aggregateFindings, applyPrevalence } from "./aggregate.js";
 import { analyzeBatches, packBatches, stageBatch } from "./analyze.js";
 import { RunBudget } from "./budget.js";
-import { generateProposals } from "./propose.js";
+import { generateProposals, redactFinding } from "./propose.js";
 import { selectSessions } from "./select.js";
 
 export interface RunOptions {
@@ -96,36 +96,46 @@ export async function runPipeline(
   );
   for (const bad of invalid) log(`  ⚠ invalid proposal ${bad.path}: ${bad.reason}`);
 
+  // Findings persist to report.json and terminal output — redact ALL of
+  // them, not just the proposal-linked ones (Codex code-review finding).
   const report: RunReport = {
     runId,
     projectPath,
     sessionsSelected: selected.length,
     sessionsAnalyzed: analysis.analyzedSessionIds,
     sessionsFailed: analysis.failedSessionIds,
-    findings: merged,
-    survivingFindings: surviving,
+    findings: merged.map(redactFinding),
+    survivingFindings: surviving.map(redactFinding),
     proposals,
     usage: budget.snapshot(),
     partial: budget.wasAborted() || analysis.failedSessionIds.length > 0,
     dryRun: opts.dryRun === true,
   };
   writeFileSync(join(runDir, "report.json"), JSON.stringify(report, null, 2));
-
-  // 5. Watermark (per-session, successful analyses only, never on dry runs)
-  if (!opts.dryRun) {
-    const next = markDreamed(state, analysis.analyzedSessionIds, runId);
-    saveState(projectPath, {
-      ...next,
-      lastRun: {
-        runId,
-        at: new Date().toISOString(),
-        proposals: proposals.length,
-        costUsd: budget.snapshot().costUsd,
-        partial: report.partial,
-      },
-    });
-  }
   return report;
+}
+
+/**
+ * Advance the per-session watermark. Called by the CLI only AFTER output
+ * (branch commits / auto apply) has succeeded, so a failed output never
+ * marks sessions dreamed without producing review artifacts. Never called
+ * on dry runs. State is re-loaded here so a long pipeline doesn't clobber
+ * updates written since the run began.
+ */
+export function commitWatermark(projectPath: string, report: RunReport): void {
+  if (report.dryRun) return;
+  const fresh = loadState(projectPath);
+  const next = markDreamed(fresh, report.sessionsAnalyzed, report.runId);
+  saveState(projectPath, {
+    ...next,
+    lastRun: {
+      runId: report.runId,
+      at: new Date().toISOString(),
+      proposals: report.proposals.length,
+      costUsd: report.usage.costUsd,
+      partial: report.partial,
+    },
+  });
 }
 
 function emptyReport(runId: string, projectPath: string, dryRun: boolean): RunReport {

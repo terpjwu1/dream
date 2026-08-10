@@ -79,8 +79,10 @@ export class ClaudeAgentRunner implements AgentRunner {
         model: req.runtime.model,
         systemPrompt: req.systemPrompt,
         cwd: mounted ? req.workspace.dir : undefined,
-        // Deny-by-default sandbox: only read tools are pre-approved, so the
-        // analyzer can never write or execute anything.
+        // Sandbox, two layers: `tools` RESTRICTS what exists (allowedTools
+        // only auto-approves — per sdk.d.ts it does not limit availability),
+        // and dontAsk denies anything not pre-approved.
+        tools: mounted ? ["Read", "Grep", "Glob"] : [],
         allowedTools: mounted ? ["Read", "Grep", "Glob"] : [],
         permissionMode: "dontAsk",
         maxTurns: req.runtime.maxSteps ?? 25,
@@ -94,8 +96,14 @@ export class ClaudeAgentRunner implements AgentRunner {
       if (message.type === "result") {
         if (message.subtype === "success") text = message.result;
         usage.costUsd = message.total_cost_usd;
-        usage.inputTokens = message.usage?.input_tokens;
-        usage.outputTokens = message.usage?.output_tokens;
+        // modelUsage covers sub-calls too; sdk.d.ts marks it the correct
+        // accounting source (message.usage is main-loop only).
+        const models = Object.values(message.modelUsage ?? {}) as Array<{
+          inputTokens?: number;
+          outputTokens?: number;
+        }>;
+        usage.inputTokens = models.reduce((s, m) => s + (m.inputTokens ?? 0), 0);
+        usage.outputTokens = models.reduce((s, m) => s + (m.outputTokens ?? 0), 0);
         if (message.subtype !== "success") {
           throw new Error(`Agent run failed: ${message.subtype}`);
         }

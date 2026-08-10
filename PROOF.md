@@ -10,12 +10,12 @@ implementing "dreaming" — out-of-band memory curation over Claude Code
 session transcripts, per the AI Native DevCon 2026 talk (see NOTES.md,
 plan in `~/.claude/plans/tender-squishing-rivest.md`, Codex-reviewed).
 
-## Evidence 1 — Unit & integration tests: 50/50 passing
+## Evidence 1 — Unit & integration tests: 55/55 passing
 
 ```
 $ npx vitest run
- Test Files  8 passed (8)
-      Tests  50 passed (50)
+ Test Files  9 passed (9)
+      Tests  55 passed (55)
 ```
 
 Coverage of the risk areas Codex's review flagged:
@@ -149,6 +149,38 @@ init → run → branch commits → review → accept → smarter memory — wor
 - Invalid-output debug captures: `~/.dream/runs/debug/`
 - Total spend across all live runs: ~$5.9 (dry-run $3.60 on fable-5 +
   three E2E runs ≤ $0.91 each)
+
+## Evidence 4 — Codex code review of the implementation, findings fixed
+
+After the E2E proof, Codex reviewed the implementation (separately from its
+earlier design review of the plan). It confirmed 11 areas sound (dry-run
+watermark semantics, hallucinated-id rejection, commit-body redaction, git
+preflights, torn-line handling…) and found real issues, all fixed with
+regression tests (`test/codexReviewFixes.test.ts`; suite now **55/55**):
+
+| Severity | Finding | Fix |
+|---|---|---|
+| HIGH | Watermark advanced before branch/auto output — output failure could mark sessions dreamed with no review artifact | `commitWatermark()` now runs only after output succeeds, and re-loads state to merge concurrent updates |
+| HIGH | `report.json` persisted unredacted findings (only proposal-linked ones were redacted) | all findings redacted at report construction |
+| HIGH | SDK `allowedTools` only auto-approves — it does not RESTRICT the tool surface | added `tools: ["Read","Grep","Glob"]` (verified against sdk.d.ts) alongside `allowedTools` + `dontAsk` |
+| HIGH | Concurrent `dream run`s could double-analyze sessions | per-project O_EXCL run lock with stale-lock takeover |
+| HIGH | Mid-commit failure in branch mode could carry staged changes back to the base branch | `git reset --hard` before restoring the original branch |
+| MED | Symlink planted in the memory dir could redirect writes outside the store | `lstat`/`realpath` checks in `resolvePath` |
+| MED | `dream review --accept` while checked out on a `dream/*` branch could merge a branch into itself | guard refuses review from `dream/*` |
+| MED | Token accounting read main-loop `usage` instead of the SDK's preferred `modelUsage` | summed across `modelUsage` |
+| LOW | Hard-clip marker overshot the token budget; JSON scan missed documents after prose brackets | both fixed |
+
+Deferred (documented, not blocking v1): wiring an `abortController` into
+in-flight SDK queries for mid-run budget cancellation (currently the budget
+gates *new* launches only) — noted in the PR.
+
+A final live E2E run (`2026-08-10-a88de8`) after these fixes re-analyzed the
+same 3 sessions against the now-corrected memory store and produced
+**0 findings, 0 proposals** ($0.22): the memory already encodes the lesson,
+so dreaming converged instead of re-proposing — exactly the desired
+fixed-point behavior. It also confirmed the restricted `tools` option works
+live, and the `modelUsage` fix reports real input tokens (802 in / 1,669
+out, vs. the old main-loop-only "15 in").
 
 ## How to re-verify tomorrow
 

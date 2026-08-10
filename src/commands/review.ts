@@ -34,6 +34,12 @@ export async function reviewCommand(
 
   const target = branches[0]!; // oldest first
   const base = await currentBranch(memoryDir);
+  if (base.startsWith("dream/")) {
+    throw new Error(
+      `memory repo is checked out on ${base} — switch to your base branch first ` +
+        `(git -C "${memoryDir}" checkout main), then run dream review`,
+    );
+  }
 
   if (opts.accept && opts.reject) throw new Error("pass --accept or --reject, not both");
 
