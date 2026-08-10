@@ -10,12 +10,12 @@ implementing "dreaming" — out-of-band memory curation over Claude Code
 session transcripts, per the AI Native DevCon 2026 talk (see NOTES.md,
 plan in `~/.claude/plans/tender-squishing-rivest.md`, Codex-reviewed).
 
-## Evidence 1 — Unit & integration tests: 47/47 passing
+## Evidence 1 — Unit & integration tests: 50/50 passing
 
 ```
 $ npx vitest run
  Test Files  8 passed (8)
-      Tests  47 passed (47)
+      Tests  50 passed (50)
 ```
 
 Coverage of the risk areas Codex's review flagged:
@@ -67,13 +67,96 @@ What this proves:
 
 ## Evidence 3 — Full loop on a controlled 3-session project
 
-<!-- E2E-RESULTS -->
+A controlled fixture: 3 synthetic Claude Code sessions (real JSONL format,
+written to `~/.claude/projects/…-e2e-proj/`) in which the agent repeatedly
+runs `npm run test:integration` before starting postgres (ECONNREFUSED in
+all 3), plus one seeded memory (`db-setup.md`) that session 3 contradicts
+("we renamed the makefile target: it's `make db-up` now").
+
+### Run (real Claude agents, branch mode) — `run 2026-08-10-8bd89c`
+
+```
+run 2026-08-10-8bd89c: 3 session(s) selected (0 already dreamed, 0 live)
+analysis: 2 raw finding(s) from 3/3 session(s)
+prevalence: 2/2 finding(s) survive
+findings:
+  • [recurring_failure] Integration tests failed with `connect ECONNREFUSED
+    127.0.0.1:5432` in all 3 sessions … — seen in 3/3 sessions
+  • [stale_memory] Memory entry db-setup.md instructs `docker compose up -d db`,
+    but the user says that is deprecated in favor of `make db-up` — seen in 1/3
+    (admitted via the stale-memory bypass)
+proposals (1): UPDATE db-setup.md
+usage: $0.679
+1 proposal(s) committed to branch dream/2026-08-10-8bd89c
+```
+
+The proposer merged both findings into ONE file update — fixed the stale
+command *and* made the memory instruct starting the db proactively — with
+the evidence commit body carrying rationale, prevalence stats, and the
+verbatim user quote.
+
+### Review + accept
+
+```
+$ dream review --project …/e2e-proj          # lists the branch, per-commit stat + evidence
+$ dream review --project …/e2e-proj --accept
+accepted dream/2026-08-10-8bd89c into main
+```
+
+### Memory store after accept (verbatim)
+
+```markdown
+---
+name: db-setup
+description: ALWAYS run `make db-up` before `npm run test:integration` — tests fail with ECONNREFUSED 127.0.0.1:5432 if postgres isn't up
+metadata:
+  type: project
+  curatedBy: dream
+  evidenceSessions:
+    - 11111111-…
+    - 22222222-…
+    - 33333333-…
+---
+
+Integration tests need the local postgres container. Start it BEFORE running tests: …
+- Do NOT use `docker compose up -d db` directly — … replaced it with `make db-up`.
+```
+
+MEMORY.md index regenerated; `dream status` shows `dreamed sessions: 3`,
+`un-dreamed: 0`, `last run: … 1 proposal(s), $0.68`. The full loop —
+init → run → branch commits → review → accept → smarter memory — works.
+
+## Bugs the dogfooding itself caught (and their fixes, both now unit-tested)
+
+1. **Proposer path prefixing** (run `…-c1c8f8`): the agent emitted
+   `memory/db-setup.md` (its cwd view) instead of `db-setup.md`; strict
+   validation rejected it. Fix: deterministic `normalizeProposalPath()` +
+   sharper prompt. Failed-run semantics held: no watermark advance, sessions
+   retried cleanly.
+2. **JSON extraction truncated by inner backticks** (run `…-45e567`): the
+   proposed memory file legitimately contains a fenced code block; the lazy
+   fence regex stopped at those backticks mid-JSON-string. Fix:
+   line-anchored fence closing + balanced-bracket scanner. Verified by
+   re-parsing the actual failed output from the debug dir.
+
+## Artifacts for inspection
+
+- E2E project: `/private/tmp/claude-501/…/scratchpad/e2e-proj` (fixture
+  transcripts in `~/.claude/projects/-private-tmp-…-e2e-proj/`; remove that
+  dir to clean up)
+- Run reports: `~/.dream/runs/<runId>/report.json` (+ staged digests per batch)
+- Real-data dry-run report: `~/.dream/runs/2026-08-10-ddd6d3/report.json`
+- Invalid-output debug captures: `~/.dream/runs/debug/`
+- Total spend across all live runs: ~$5.9 (dry-run $3.60 on fable-5 +
+  three E2E runs ≤ $0.91 each)
 
 ## How to re-verify tomorrow
 
 ```bash
 cd /Users/jwu/Documents/dream
-npm run build && npx vitest run          # 47 tests
+npm run build && npx vitest run          # 50 tests
 node dist/cli.js status --project /Users/jwu/Documents/buddyReborn/buddy
-node dist/cli.js run --project /Users/jwu/Documents/buddyReborn/buddy --dry-run
+node dist/cli.js run --project /Users/jwu/Documents/buddyReborn/buddy --dry-run   # ~$3-4 on fable-5
+# or replay the accepted E2E history:
+git -C ~/.claude/projects/-private-tmp-claude-501--Users-jwu-Documents-dream-df01243d-1957-4af5-9f0f-04eddcbb49fc-scratchpad-e2e-proj/memory log --stat
 ```
