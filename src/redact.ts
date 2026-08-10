@@ -24,6 +24,21 @@ export function redactSecrets(text: string): string {
   return out;
 }
 
+/**
+ * Redact every string anywhere in a JSON-shaped value. Schema-driven,
+ * field-by-field redaction misses newly added fields; this can't.
+ */
+export function deepRedact<T>(value: T): T {
+  if (typeof value === "string") return redactSecrets(value) as T;
+  if (Array.isArray(value)) return value.map((v) => deepRedact(v)) as T;
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, deepRedact(v)]),
+    ) as T;
+  }
+  return value;
+}
+
 export function containsSecret(text: string): boolean {
   return SECRET_PATTERNS.some((p) => {
     p.lastIndex = 0;

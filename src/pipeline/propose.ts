@@ -5,7 +5,7 @@ import { PROPOSER_SYSTEM, proposerPrompt } from "../agents/prompts.js";
 import type { Config } from "../config.js";
 import { validateMemoryFile } from "../memory/frontmatter.js";
 import type { FileMemoryStore } from "../memory/memoryStore.js";
-import { redactSecrets } from "../redact.js";
+import { deepRedact, redactSecrets } from "../redact.js";
 import { RawProposalArraySchema, type Finding, type Proposal } from "../types.js";
 import type { RunBudget } from "./budget.js";
 
@@ -88,18 +88,10 @@ export function normalizeProposalPath(rawPath: string, storeRoot: string): strin
   return path;
 }
 
-/** Evidence excerpts end up in commit bodies and changelogs — redact them too. */
+/**
+ * Findings end up in commit bodies, changelogs, and report.json — deep-redact
+ * every string field so schema growth can never reopen a leak.
+ */
 export function redactFinding(finding: Finding): Finding {
-  return {
-    ...finding,
-    summary: redactSecrets(finding.summary),
-    detail: redactSecrets(finding.detail),
-    evidence: {
-      ...finding.evidence,
-      quotes: finding.evidence.quotes.map((q) => ({
-        sessionId: q.sessionId,
-        excerpt: redactSecrets(q.excerpt),
-      })),
-    },
-  };
+  return deepRedact(finding);
 }

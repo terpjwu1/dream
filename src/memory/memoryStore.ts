@@ -1,5 +1,5 @@
-import { lstatSync, mkdirSync, realpathSync } from "node:fs";
-import { readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { constants, lstatSync, mkdirSync, realpathSync } from "node:fs";
+import { open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import matter from "gray-matter";
 import type { Proposal } from "../types.js";
@@ -100,13 +100,24 @@ export class FileMemoryStore {
     const abs = this.resolvePath(p.path);
     switch (p.op) {
       case "create":
-      case "update":
+      case "update": {
         if (p.newContent === undefined) {
           throw new Error(`Proposal ${p.op} ${p.path} has no newContent`);
         }
         mkdirSync(this.root, { recursive: true });
-        await writeFile(abs, p.newContent, "utf8");
+        // O_NOFOLLOW at write time closes the check-to-write window: even a
+        // symlink planted after resolvePath's lstat cannot redirect the write.
+        const fh = await open(
+          abs,
+          constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
+        );
+        try {
+          await fh.writeFile(p.newContent, "utf8");
+        } finally {
+          await fh.close();
+        }
         return;
+      }
       case "delete":
         await rm(abs);
         return;

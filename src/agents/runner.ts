@@ -74,18 +74,24 @@ export function extractJson(text: string): string {
   const candidates: string[] = [];
   const fences = [...text.matchAll(/```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```/g)];
   for (const fence of fences.reverse()) candidates.push(fence[1]!.trim());
-  // Prose can contain brackets before the real document — try each bracket
-  // start in order; non-JSON ones (e.g. "[above]") fail the parse and are
-  // skipped, and forward order prefers the outermost document over nested
-  // fragments.
-  const starts: number[] = [];
-  for (let i = 0; i < text.length && starts.length < 50; i++) {
-    if (text[i] === "[" || text[i] === "{") starts.push(i);
+  // Bare-text fallback: collect OUTERMOST parseable documents left-to-right
+  // (a parsed span is skipped over, so nested fragments never compete), then
+  // prefer the LAST — agents put the final answer at the end, so prose JSON
+  // earlier in the text can't shadow it.
+  const outermost: string[] = [];
+  for (let i = 0; i < text.length && outermost.length < 50; i++) {
+    if (text[i] !== "[" && text[i] !== "{") continue;
+    const span = scanBalancedJson(text, i);
+    if (!span) continue;
+    try {
+      JSON.parse(span);
+      outermost.push(span);
+      i += span.length - 1;
+    } catch {
+      continue;
+    }
   }
-  for (const start of starts) {
-    const balanced = scanBalancedJson(text, start);
-    if (balanced) candidates.push(balanced);
-  }
+  for (const doc of outermost.reverse()) candidates.push(doc);
   for (const candidate of candidates) {
     try {
       JSON.parse(candidate);

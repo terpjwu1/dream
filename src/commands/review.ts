@@ -33,6 +33,8 @@ export async function reviewCommand(
   }
 
   const target = branches[0]!; // oldest first
+  // Everything above this guard is read-only (for-each-ref, symbolic-ref);
+  // every mutating git op (merge, branch -D) happens after it.
   const base = await currentBranch(memoryDir);
   if (base.startsWith("dream/")) {
     throw new Error(

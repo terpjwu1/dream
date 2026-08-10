@@ -174,6 +174,30 @@ Deferred (documented, not blocking v1): wiring an `abortController` into
 in-flight SDK queries for mid-run budget cancellation (currently the budget
 gates *new* launches only) — noted in the PR.
 
+### Round 2 — Codex verified the fixes themselves
+
+Codex then re-reviewed the fix commit per-finding: **4 VERIFIED** (watermark
+ordering, branch-mode rollback, SDK `tools` option, `modelUsage` accounting),
+**3 REGRESSION / 2 INCOMPLETE** on the rest. All round-2 issues fixed
+(suite now **60/60**):
+
+- **Lock ownership** — stale takeover now re-races an exclusive create
+  instead of overwriting, and release verifies an owner token before
+  deleting (a release can no longer remove someone else's lock).
+- **Deep redaction** — `redactFinding` walks every string in the structure
+  (`deepRedact`) instead of naming fields, so schema growth can't reopen a
+  leak. Tested with secrets planted in `id`, `sessionIds`, and
+  `relatedMemoryFiles`.
+- **Write-time symlink defense** — memory writes now open with
+  `O_NOFOLLOW`, closing the check-to-write race the lstat check alone left
+  open.
+- **extractJson ordering** — bare-text fallback now collects outermost
+  parseable documents left-to-right and prefers the last, so prose JSON
+  early in a response can't shadow the final answer and nested fragments
+  still can't win.
+- The review-command guard placement was confirmed safe as-is (only
+  read-only git ops precede it; documented with a comment).
+
 A final live E2E run (`2026-08-10-a88de8`) after these fixes re-analyzed the
 same 3 sessions against the now-corrected memory store and produced
 **0 findings, 0 proposals** ($0.22): the memory already encodes the lesson,

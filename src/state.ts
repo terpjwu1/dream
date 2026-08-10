@@ -56,10 +56,20 @@ const STALE_LOCK_MS = 60 * 60 * 1000;
 export function acquireRunLock(projectPath: string): () => void {
   const path = `${stateFile(projectPath)}.lock`;
   mkdirSync(dirname(path), { recursive: true });
-  try {
-    writeFileSync(path, `${process.pid} ${new Date().toISOString()}\n`, { flag: "wx" });
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+  // Owner token: takeover and release are guarded by content, not just
+  // existence, so a stale-lock steal can't be double-won silently and
+  // release can't delete a lock acquired by someone else.
+  const token = `${process.pid}.${Math.random().toString(36).slice(2)}\n`;
+  const tryAcquire = (): boolean => {
+    try {
+      writeFileSync(path, token, { flag: "wx" });
+      return true;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      return false;
+    }
+  };
+  if (!tryAcquire()) {
     const age = Date.now() - statSync(path).mtimeMs;
     if (age < STALE_LOCK_MS) {
       throw new Error(
@@ -67,11 +77,18 @@ export function acquireRunLock(projectPath: string): () => void {
           `If that's wrong, delete the lock file.`,
       );
     }
-    writeFileSync(path, `${process.pid} ${new Date().toISOString()}\n`); // steal stale lock
+    try {
+      rmSync(path); // stale — remove, then re-race for exclusive create
+    } catch {
+      // someone else removed it first; fall through to the re-race
+    }
+    if (!tryAcquire()) {
+      throw new Error(`another dream run took over the stale lock (${path})`);
+    }
   }
   return () => {
     try {
-      rmSync(path);
+      if (readFileSync(path, "utf8") === token) rmSync(path);
     } catch {
       // already gone — fine
     }
