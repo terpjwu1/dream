@@ -195,6 +195,8 @@ pasted command output in [PROOF.md](PROOF.md) — but expect rough edges.
 - Concept: Lamis Mukta (Anthropic), [*Learning while you sleep: Beyond memory
   to dreaming*](https://www.youtube.com/watch?v=tTcxVv8HHNw), AI Native DevCon
   2026. Detailed talk notes in [NOTES.md](NOTES.md).
+- Created by [Steven Jieli Wu](https://stevenjieliwu.com/) — generative AI
+  architect and educator; also the maker of Buddy, the AI coding companion.
 - Built with Claude Code; design and implementation reviewed by Codex (all
   findings fixed with regression tests — see [PROOF.md](PROOF.md)).
 
