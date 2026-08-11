@@ -164,9 +164,10 @@ changed file, for easy revert.
 - **Hard budget cap** — cost is metered per run; new agent launches stop once
   the cap is crossed.
 
-55/55 tests cover exactly these properties (real JSONL edge cases, torn live
-sessions, path traversal, hallucinated-id rejection, redaction across 7
-credential formats, budget aborts, dirty-tree refusal).
+64/64 tests cover exactly these properties (real JSONL edge cases, torn live
+sessions, path traversal + symlink escapes, hallucinated-id rejection,
+deep redaction across 7 credential formats, budget aborts, dirty-tree
+refusal, mid-commit rollback, SDK sandbox-option conformance).
 
 ## Beyond Claude Code
 

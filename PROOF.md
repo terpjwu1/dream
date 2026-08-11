@@ -10,13 +10,18 @@ implementing "dreaming" — out-of-band memory curation over Claude Code
 session transcripts, per the AI Native DevCon 2026 talk (see NOTES.md,
 plan in `~/.claude/plans/tender-squishing-rivest.md`, Codex-reviewed).
 
-## Evidence 1 — Unit & integration tests: 55/55 passing
+## Evidence 1 — Unit & integration tests: 64/64 passing
 
 ```
 $ npx vitest run
- Test Files  9 passed (9)
-      Tests  55 passed (55)
+ Test Files  10 passed (10)
+      Tests  64 passed (64)
 ```
+
+(The suite grew across review rounds: 50 at first proof, 55 after the
+Codex code-review fixes, 60 after the verification-round fixes, 64 with
+the Codex-recommended test additions. Counts inside the narrative below
+are the historical values at each stage.)
 
 Coverage of the risk areas Codex's review flagged:
 - real JSONL record shapes incl. `isMeta` guards, `toolUseResult` side
