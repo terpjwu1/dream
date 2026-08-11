@@ -135,10 +135,12 @@ describe("plugin scaffold validity (schema-drift canary)", () => {
     expect(entry.hooks[0].timeout).toBe(15);
   });
 
-  it("trigger.mjs exists, guards re-entry, and handles Windows shims", () => {
+  it("trigger.mjs exists, guards re-entry, handles Windows shims, and fast-paths opt-out projects", () => {
     const script = readFileSync(join(ROOT, "plugin/hooks/trigger.mjs"), "utf8");
     expect(script).toContain("DREAM_BACKGROUND");
     expect(script).toContain('process.platform === "win32"');
+    // uninitialized projects must exit before the CLI spawn (session-start latency)
+    expect(script.indexOf(".dream")).toBeLessThan(script.indexOf("spawnSync(\"dream\""));
   });
 
   it("install/uninstall scripts exist for both platforms", () => {

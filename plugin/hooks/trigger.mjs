@@ -2,17 +2,33 @@
 // dream SessionStart hook: forward the payload to `dream trigger`, which
 // decides whether to start a background dreaming run (opt-in per project).
 // Cross-platform (node, not bash) and silent when the dream CLI is missing —
-// a hook must never break a session.
+// a hook must never break a session, and must barely delay one: the actual
+// dreaming always runs in a detached child, never on the session path.
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 if (process.env.DREAM_BACKGROUND === "1") process.exit(0);
 
 const chunks = [];
 process.stdin.on("data", (c) => chunks.push(c));
 process.stdin.on("end", () => {
+  const input = Buffer.concat(chunks);
+
+  // Fast path: dreaming is opt-in per project (.dream/config.json). For the
+  // overwhelmingly common case — a project that never opted in — exit after
+  // one existsSync instead of paying a second node startup for the CLI.
+  try {
+    const payload = JSON.parse(input.toString("utf8"));
+    const cwd = typeof payload?.cwd === "string" ? payload.cwd : undefined;
+    if (!cwd || !existsSync(join(cwd, ".dream", "config.json"))) process.exit(0);
+  } catch {
+    process.exit(0); // unparseable payload — nothing sensible to trigger
+  }
+
   try {
     const result = spawnSync("dream", ["trigger", "--stdin"], {
-      input: Buffer.concat(chunks),
+      input,
       // Windows npm shims are .cmd files and need a shell to resolve.
       shell: process.platform === "win32",
       stdio: ["pipe", "inherit", "ignore"],
