@@ -5,13 +5,13 @@
     "url": "https://stevenjieliwu.com/"
   },
   "metadata": {
-    "description": "fiorastudio plugins — dream: out-of-band memory curation for coding agents",
+    "description": "fiorastudio plugins — dream: background memory curation for coding agents",
     "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "dream",
-      "description": "Ambient dreaming for Claude Code: background runs over session transcripts, a status-line badge, and conversational /dream:review of evidence-backed memory proposals.",
+      "description": "Memory curation for coding agents — while you sleep, dream reads session transcripts in the background and proposes evidence-backed memory updates you review.",
       "version": "0.1.0",
       "author": {
         "name": "Steven Jieli Wu"

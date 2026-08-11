@@ -14,11 +14,11 @@ and an homage to Claude Code's own short-lived **auto-dream** feature (seen in
 builds before 2.1.84, gone by 2.1.97). This project keeps that idea alive as
 an open tool.
 
-*"Out-of-band"* means the curation happens **outside the live session** — in a
-separate batch process with its own budget, not while the agent is busy doing
-your work. In-band memory (the agent jotting notes mid-task) splits its focus
-and only sees one session; out-of-band dreaming sees weeks of sessions at once
-and spends dedicated tokens on nothing but learning.
+The key idea: the curation happens **in the background, between sessions** —
+a separate batch process with its own budget, not the agent jotting notes
+mid-task with half its attention. Mid-task notes only ever see one session;
+a background dreamer sees weeks of sessions at once and spends dedicated
+tokens on nothing but learning.
 
 ```console
 $ dream run --project ~/code/myapp
@@ -96,13 +96,21 @@ involved in that decision.
 
 ## Quick start
 
-Not on npm yet — build from source:
+One script — builds the CLI, puts `dream` on your PATH, and installs the
+Claude Code plugin:
 
 ```bash
 git clone https://github.com/terpjwu1/dream.git && cd dream
-npm install && npm run build
-npm link        # optional: makes `dream` available on your PATH
+./scripts/install.sh          # macOS / Linux
 ```
+
+```powershell
+git clone https://github.com/terpjwu1/dream.git; cd dream
+.\scripts\install.ps1         # Windows
+```
+
+(`--no-plugin` / `-NoPlugin` skips the Claude Code plugin; uninstall with
+`scripts/uninstall.sh` / `uninstall.ps1`, `--purge` to also drop run history.)
 
 `dream` uses the Claude Agent SDK, so it needs the same auth as Claude Code
 (a logged-in Claude Code install, or an Anthropic API key).

@@ -108,10 +108,6 @@ describe("manifest drift protection", () => {
     expect(market.plugins[0].name).toBe(standard.name);
   });
 
-  it("hook script guards against dream-spawned re-triggering", () => {
-    const script = readFileSync(join(ROOT, "plugin/hooks/trigger.sh"), "utf8");
-    expect(script).toContain("DREAM_BACKGROUND");
-  });
 });
 
 describe("plugin scaffold validity (schema-drift canary)", () => {
@@ -131,18 +127,27 @@ describe("plugin scaffold validity (schema-drift canary)", () => {
     expect(manifest.description).toBeTruthy();
   });
 
-  it("hooks.json declares the SessionStart hook with plugin-root command", () => {
+  it("hooks.json declares the SessionStart hook via node (cross-platform)", () => {
     const hooks = JSON.parse(readFileSync(join(ROOT, "plugin/hooks/hooks.json"), "utf8"));
     const entry = hooks.hooks.SessionStart[0];
     expect(entry.matcher).toBe("startup|resume");
-    expect(entry.hooks[0].command).toContain("${CLAUDE_PLUGIN_ROOT}/hooks/trigger.sh");
+    expect(entry.hooks[0].command).toContain('node "${CLAUDE_PLUGIN_ROOT}/hooks/trigger.mjs"');
     expect(entry.hooks[0].timeout).toBe(15);
   });
 
-  it("trigger.sh exists and is executable", () => {
-    const path = join(ROOT, "plugin/hooks/trigger.sh");
-    expect(existsSync(path)).toBe(true);
-    expect(statSync(path).mode & 0o111).toBeTruthy();
+  it("trigger.mjs exists, guards re-entry, and handles Windows shims", () => {
+    const script = readFileSync(join(ROOT, "plugin/hooks/trigger.mjs"), "utf8");
+    expect(script).toContain("DREAM_BACKGROUND");
+    expect(script).toContain('process.platform === "win32"');
+  });
+
+  it("install/uninstall scripts exist for both platforms", () => {
+    for (const script of ["install.sh", "uninstall.sh", "install.ps1", "uninstall.ps1"]) {
+      expect(existsSync(join(ROOT, "scripts", script)), script).toBe(true);
+    }
+    for (const script of ["install.sh", "uninstall.sh"]) {
+      expect(statSync(join(ROOT, "scripts", script)).mode & 0o111, `${script} +x`).toBeTruthy();
+    }
   });
 
   it("all four skills exist with required frontmatter", () => {

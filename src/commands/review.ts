@@ -74,11 +74,13 @@ export async function reviewCommand(
   }
 
   if (opts.accept || opts.reject) {
-    // A background run may be writing this badge concurrently — if the run
-    // lock is held, leave badge ownership to the run (it recounts at the
-    // end). Otherwise recount branches immediately before touching it.
-    const runActive = existsSync(`${stateFile(projectPath)}.lock`);
+    // A background run may own this badge. Order matters: recount branches
+    // FIRST, then revalidate the lock IMMEDIATELY before touching the badge
+    // (Codex verification finding). Residual races are microsecond-wide and
+    // self-healing: an active run rewrites the badge at every stage and at
+    // completion, so any stale touch here is overwritten by the run's truth.
     const remaining = (await listDreamBranches(memoryDir)).length;
+    const runActive = existsSync(`${stateFile(projectPath)}.lock`);
     if (remaining > 0) {
       // Branch count, not proposal count — proposals-per-branch varies.
       if (!runActive) {

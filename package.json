@@ -1,7 +1,7 @@
 {
   "name": "dream",
   "version": "0.1.0",
-  "description": "Out-of-band memory curation for coding agents — dreaming, per the AI Native DevCon 2026 talk",
+  "description": "Background memory curation for coding agents — while your agent sleeps, dream reads its session transcripts and proposes evidence-backed memory updates (the dreaming pattern from AI Native DevCon 2026)",
   "main": "index.js",
   "scripts": {
     "test": "vitest run",

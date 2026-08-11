@@ -7,7 +7,7 @@ const program = new Command();
 program
   .name("dream")
   .description(
-    "Out-of-band memory curation for coding agents — analyzes session transcripts " +
+    "Background memory curation for coding agents — analyzes session transcripts " +
       "for cross-session patterns and proposes evidence-backed memory changes.",
   )
   .version("0.1.0");

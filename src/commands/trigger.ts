@@ -86,7 +86,11 @@ export async function readStdinProject(): Promise<string | undefined> {
   let bytes = 0;
   for await (const chunk of process.stdin) {
     bytes += (chunk as Buffer).length;
-    if (bytes > MAX_STDIN_BYTES) return undefined; // hook payloads are small; refuse floods
+    if (bytes > MAX_STDIN_BYTES) {
+      // Hook payloads are tiny; a flood is refused loudly so it's diagnosable.
+      console.error(`dream trigger: stdin payload exceeded ${MAX_STDIN_BYTES} bytes — ignoring`);
+      return undefined;
+    }
     chunks.push(chunk as Buffer);
   }
   return hookPayloadProject(Buffer.concat(chunks).toString("utf8"));
