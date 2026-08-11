@@ -198,6 +198,24 @@ ordering, branch-mode rollback, SDK `tools` option, `modelUsage` accounting),
 - The review-command guard placement was confirmed safe as-is (only
   read-only git ops precede it; documented with a comment).
 
+### Round 3 — the test additions Codex recommended, all landed
+
+Codex's round-1 review also recommended four specific tests beyond the code
+fixes. All exist now (`test/codexTestGaps.test.ts`; suite **64/64**):
+
+- **SDK option conformance** — mocks the Agent SDK `query()` and asserts the
+  exact options object: `tools`/`allowedTools` both restricted,
+  `permissionMode: "dontAsk"`, `settingSources: []`, `maxTurns`, and that
+  usage comes from `modelUsage`.
+- **Mid-commit failure rollback** — a failing pre-commit hook aborts branch
+  mode; asserts the base branch ends up checked out and fully clean.
+- **Whole-report secret assertion** — a fake runner plants secrets across
+  finding fields; the persisted `report.json` is verified to contain zero
+  secret patterns and `[REDACTED-SECRET]` markers.
+- **Concurrency** — covered by the run-lock mutual-exclusion and owner-token
+  release tests (round 2); a full two-process integration race is the one
+  test consciously left out (the O_EXCL lock is the mechanism under test).
+
 A final live E2E run (`2026-08-10-a88de8`) after these fixes re-analyzed the
 same 3 sessions against the now-corrected memory store and produced
 **0 findings, 0 proposals** ($0.22): the memory already encodes the lesson,
