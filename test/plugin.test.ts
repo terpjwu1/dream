@@ -166,31 +166,41 @@ describe("manifest drift protection", () => {
 });
 
 describe("trigger.mjs execution (fast path behavior)", () => {
-  function runHook(payload: object, shimDir: string): string {
+  function runHook(payload: object, shimDir: string, dreamHome: string): string {
     const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
     return execFileSync("node", [join(ROOT, "plugin/hooks/trigger.mjs")], {
       input: JSON.stringify(payload),
-      env: { ...process.env, PATH: `${shimDir}:${process.env.PATH}` },
+      // DREAM_HOME isolates the test from the real ~/.dream (a machine with
+      // `dream init --global` would otherwise make every project dreamable).
+      env: { ...process.env, PATH: `${shimDir}:${process.env.PATH}`, DREAM_HOME: dreamHome },
       encoding: "utf8",
     });
   }
 
-  it("skips the CLI entirely for uninitialized projects, invokes it for initialized ones", () => {
+  it("skips the CLI for uninitialized projects, invokes it for opted-in and global ones", () => {
     const { mkdtempSync, mkdirSync, writeFileSync, chmodSync } = require("node:fs") as typeof import("node:fs");
     const { tmpdir } = require("node:os") as typeof import("node:os");
     const tmp = mkdtempSync(join(tmpdir(), "dream-hook-"));
     // fake `dream` CLI that announces itself if invoked
     writeFileSync(join(tmp, "dream"), "#!/bin/sh\necho SHIM-CALLED\n");
     chmodSync(join(tmp, "dream"), 0o755);
+    // hermetic dream homes: one with nothing, one with the global opt-in
+    const homeOff = join(tmp, "home-off");
+    mkdirSync(homeOff, { recursive: true });
+    const homeGlobal = join(tmp, "home-global");
+    mkdirSync(homeGlobal, { recursive: true });
+    writeFileSync(join(homeGlobal, "config.json"), JSON.stringify({ trigger: { global: true } }));
     // initialized project
     const proj = join(tmp, "proj");
     mkdirSync(join(proj, ".dream"), { recursive: true });
     writeFileSync(join(proj, ".dream", "config.json"), "{}");
 
-    expect(runHook({ cwd: join(tmp, "not-a-project") }, tmp)).toBe(""); // fast path: no spawn
-    expect(runHook({ cwd: proj }, tmp)).toContain("SHIM-CALLED"); // opted-in: CLI invoked
-    expect(runHook({ workspace: { current_dir: proj } }, tmp)).toContain("SHIM-CALLED"); // fallback field
-    expect(runHook({ cwd: 42 }, tmp)).toBe(""); // type-trust guard
+    const stranger = join(tmp, "not-a-project");
+    expect(runHook({ cwd: stranger }, tmp, homeOff)).toBe(""); // fast path: no spawn
+    expect(runHook({ cwd: proj }, tmp, homeOff)).toContain("SHIM-CALLED"); // opted-in: CLI invoked
+    expect(runHook({ workspace: { current_dir: proj } }, tmp, homeOff)).toContain("SHIM-CALLED"); // fallback field
+    expect(runHook({ cwd: 42 }, tmp, homeOff)).toBe(""); // type-trust guard
+    expect(runHook({ cwd: stranger }, tmp, homeGlobal)).toContain("SHIM-CALLED"); // global opt-in reaches the CLI
   });
 });
 

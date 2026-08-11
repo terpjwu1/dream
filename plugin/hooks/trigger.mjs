@@ -9,10 +9,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-/** Profile-wide opt-in (`dream init --global`) makes every project dreamable. */
+/** Profile-wide opt-in (`dream init --global`) makes every project dreamable.
+ *  DREAM_HOME overrides the config location (used by tests for hermeticity). */
 function globalDreamEnabled() {
   try {
-    const config = JSON.parse(readFileSync(join(homedir(), ".dream", "config.json"), "utf8"));
+    const home = process.env.DREAM_HOME ?? join(homedir(), ".dream");
+    const config = JSON.parse(readFileSync(join(home, "config.json"), "utf8"));
     return config?.trigger?.global === true;
   } catch {
     return false;
