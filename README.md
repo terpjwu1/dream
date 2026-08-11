@@ -130,6 +130,34 @@ prevalence thresholds, session window/caps, per-run cost ceiling
 (`budget.maxRunCostUsd`), and separate model choices for the analyzer
 fan-out vs. the proposer.
 
+## Onboarding (two minutes)
+
+The full loop, inside Claude Code. These are real terminal captures from an
+install run, re-rendered as SVG for readability (the Claude Code UI can't be
+screenshotted directly).
+
+**1. Install** — one script builds the CLI, links it onto your PATH, and
+installs the Claude Code plugin:
+
+![Installer output: dream CLI built and linked, Claude Code plugin installed](docs/assets/install.svg)
+
+**2. Opt a project in** — in Claude Code, `/dream:setup` writes the config,
+initializes the memory store, asks what to pay attention to, and (with your
+consent) turns on ambient dreaming:
+
+![/dream:setup end state: project opted in, steering set, ambient dreaming on, status line chained](docs/assets/setup.svg)
+
+**3. Dream** — `/dream` kicks off a background run over your un-dreamed
+sessions; you keep working, and the status line pings when proposals land:
+
+![/dream starts a background run over 4 sessions; later the status line shows 1 proposal branch](docs/assets/dream.svg)
+
+**4. Review** — `/dream:review` walks each proposal with its rationale,
+prevalence, and verbatim session evidence; accept and the agent wakes up
+smarter next session:
+
+![/dream:review showing a real proposal to update db-setup.md, with evidence and accept/reject/later options](docs/assets/review.svg)
+
 ## What a proposal looks like
 
 Every proposal is one commit whose body carries the rationale, the prevalence
@@ -197,19 +225,17 @@ dreaming ambient:
 /plugin install dream@fiorastudio
 ```
 
-Then in any project: `/dream:setup` (installs nothing twice; runs `dream init`,
-asks what to pay attention to, and — **only with your explicit consent, off by
-default** — enables ambient triggering). After that:
+Then, in any project, `/dream:setup` → `/dream` → `/dream:review` — exactly
+the flow pictured in the [walkthrough above](#onboarding-two-minutes).
+`/dream:setup` installs nothing twice; it runs `dream init`, asks what to pay
+attention to, and — **only with your explicit consent, off by default** —
+enables ambient triggering. Beyond those three commands:
 
 - **SessionStart hook** — when ≥3 sessions are un-dreamed, a background run
   starts as you begin working; its one-line notice lands in your session.
 - **Status line** — optional `dream statusline` wiring shows `💤 dreaming…`
   during runs and `🌙 N proposal(s) · /dream:review` when results land.
-- **`/dream`** — the classic in-session trigger (an homage to the original
-  auto-dream): start a background dream right now and keep working.
-- **`/dream:review`** — review proposals conversationally, evidence and all,
-  without leaving your session. `/dream:run` and `/dream:status` for manual
-  control.
+- **`/dream:run` and `/dream:status`** — manual control from inside a session.
 
 Accepted memories land in the project's `memory/MEMORY.md`, which Claude Code
 auto-loads at session start — the agent literally wakes up smarter.

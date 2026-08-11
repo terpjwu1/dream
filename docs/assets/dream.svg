@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="740" height="182" viewBox="0 0 740 182" role="img" aria-label="Claude Code session after running /dream: a background dreaming run starts over 4 sessions; later the status line shows 1 proposal branch ready for /dream:review">
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; fill: #e6edf3; white-space: pre; }
+    .title { font-size: 12px; fill: #8b949e; }
+    .prompt { fill: #d2a8ff; }
+    .em { fill: #79c0ff; }
+    .dim { fill: #8b949e; font-style: italic; }
+    .moon { fill: #e3b341; }
+  </style>
+  <rect x="0.5" y="0.5" width="739" height="181" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <path d="M0.5 10.5 a10 10 0 0 1 10-10 h719 a10 10 0 0 1 10 10 v25.5 h-739 z" fill="#161b22"/>
+  <line x1="0.5" y1="36" x2="739.5" y2="36" stroke="#30363d"/>
+  <circle cx="22" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="42" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="62" cy="18" r="6" fill="#28c840"/>
+  <text x="370" y="22" text-anchor="middle" class="title">Claude Code — /dream</text>
+  <text x="24" y="66"><tspan class="prompt">&gt;</tspan> <tspan class="em">/dream</tspan></text>
+  <text x="24" y="96">💤 dream: dreaming over 4 session(s) in the background</text>
+  <text x="24" y="122"><tspan class="dim">   (you keep working; a few minutes later the status line shows:)</tspan></text>
+  <text x="24" y="152">🌙 <tspan class="moon">1 proposal branch(es)</tspan> · <tspan class="em">/dream:review</tspan></text>
+</svg>
