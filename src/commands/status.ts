@@ -34,6 +34,13 @@ export async function statusCommand(
           skippedLive,
           dreamedCount: Object.keys(state.dreamedSessions).length,
           pendingBranches,
+          candidates: Object.values(state.candidates).map((c) => ({
+            patternKey: c.patternKey.slice(0, 12),
+            category: c.category,
+            summary: c.summary,
+            sessions: c.validatedSessionIds.length,
+            lastSeenAt: c.lastSeenAt,
+          })),
           lastRun: state.lastRun ?? null,
         },
         null,
@@ -80,5 +87,14 @@ export async function statusCommand(
   if (selected.length > 10) console.log(`  … and ${selected.length - 10} more`);
   if (pendingBranches.length > 0) {
     console.log(`pending:     ${pendingBranches.length} dream branch(es) — run \`dream review\``);
+  }
+  const candidateCount = Object.keys(state.candidates).length;
+  if (candidateCount > 0) {
+    console.log(`suspicions:  ${candidateCount} pattern(s) accumulating evidence across runs`);
+    for (const c of Object.values(state.candidates).slice(0, 5)) {
+      console.log(
+        `  ~ [${c.category}] ${c.summary.slice(0, 80)} (${c.validatedSessionIds.length} session(s))`,
+      );
+    }
   }
 }

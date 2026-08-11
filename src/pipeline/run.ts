@@ -8,10 +8,10 @@ import { memoryDirFor } from "../config.js";
 import { FileMemoryStore } from "../memory/memoryStore.js";
 import { runsDir } from "../paths.js";
 import { ClaudeCodeSource } from "../sources/claudeCode.js";
-import { loadState, markDreamed, saveState } from "../state.js";
+import { applyLedgerDelta, loadState, markDreamed, saveState } from "../state.js";
 import type { RunReport } from "../types.js";
 import { writeBadge } from "../badge.js";
-import { aggregateFindings, applyPrevalence } from "./aggregate.js";
+import { aggregateFindings, applyPrevalence, buildLedgerDelta } from "./aggregate.js";
 import { analyzeBatches, packBatches, stageBatch } from "./analyze.js";
 import { RunBudget, mapWithConcurrency } from "./budget.js";
 import { generateProposals, redactFinding } from "./propose.js";
@@ -87,11 +87,34 @@ export async function runPipeline(
       `${analysis.analyzedSessionIds.length}/${selected.length} session(s)`,
   );
 
-  // 3. Aggregate + prevalence
-  const merged = await aggregateFindings(analysis.findings, runner, config, budget);
-  const { surviving, rejected } = applyPrevalence(merged, analysis.analyzedSessionIds, config);
+  // 3. Aggregate (candidate-aware) + prevalence + ledger delta
+  const storedCandidates = Object.values(state.candidates);
+  const merged = await aggregateFindings(
+    analysis.findings,
+    storedCandidates,
+    runner,
+    config,
+    budget,
+  );
+  const prevalence = applyPrevalence(
+    merged,
+    analysis.analyzedSessionIds,
+    config,
+    state.candidates,
+  );
+  const { surviving, rejected } = prevalence;
   for (const r of rejected) log(`  filtered: "${r.finding.summary}" — ${r.reason}`);
+  for (const key of prevalence.matchedKeys) {
+    log(`  candidate ${key.slice(0, 12)} matched by a current finding`);
+  }
   log(`prevalence: ${surviving.length}/${merged.length} finding(s) survive`);
+  const ledgerDelta = buildLedgerDelta(prevalence, analysis.analyzedSessionIds);
+  if (ledgerDelta.upserts.length > 0) {
+    log(
+      `held as candidates (evidence accumulates across runs): ` +
+        ledgerDelta.upserts.map((u) => `"${u.summary.slice(0, 70)}"`).join(", "),
+    );
+  }
 
   // 4. Propose
   badge(`💤 dreaming — drafting memory proposals…`);
@@ -115,6 +138,7 @@ export async function runPipeline(
     findings: merged.map(redactFinding),
     survivingFindings: surviving.map(redactFinding),
     proposals,
+    ledgerDelta,
     usage: budget.snapshot(),
     partial: budget.wasAborted() || analysis.failedSessionIds.length > 0,
     dryRun: opts.dryRun === true,
@@ -130,10 +154,17 @@ export async function runPipeline(
  * on dry runs. State is re-loaded here so a long pipeline doesn't clobber
  * updates written since the run began.
  */
-export function commitWatermark(projectPath: string, report: RunReport): void {
+export function commitWatermark(projectPath: string, report: RunReport, config: Config): void {
   if (report.dryRun) return;
   const fresh = loadState(projectPath);
-  const next = markDreamed(fresh, report.sessionsAnalyzed, report.runId);
+  let next = markDreamed(fresh, report.sessionsAnalyzed, report.runId);
+  if (report.ledgerDelta) {
+    next = applyLedgerDelta(next, report.ledgerDelta, {
+      sinceDays: config.transcripts.sinceDays,
+      maxPerCategory: config.ledger.maxPerCategory,
+      maxMissedRuns: config.ledger.maxMissedRuns,
+    });
+  }
   saveState(projectPath, {
     ...next,
     lastRun: {

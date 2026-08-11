@@ -69,7 +69,7 @@ export async function runCommand(
     } else {
       clearBadge(projectPath);
     }
-    commitWatermark(projectPath, report);
+    commitWatermark(projectPath, report, config);
   } catch (err) {
     if (!dryRun) writeBadge(projectPath, `⚠ dream run failed · see ${runsRoot()}/`);
     throw err;

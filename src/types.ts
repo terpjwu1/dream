@@ -64,6 +64,17 @@ export type Finding = z.infer<typeof FindingSchema>;
 
 export const FindingArraySchema = z.array(FindingSchema);
 
+/**
+ * Aggregator-only output contract: analyzers must never emit
+ * matchedPatternKey (their schema stays FindingArraySchema), so a finding
+ * can only be linked to a stored candidate at the aggregation stage.
+ */
+export const AggregatedFindingSchema = FindingSchema.extend({
+  matchedPatternKey: z.string().optional(),
+});
+export type AggregatedFinding = z.infer<typeof AggregatedFindingSchema>;
+export const AggregatedFindingArraySchema = z.array(AggregatedFindingSchema);
+
 export const ProposalOpSchema = z.enum(["create", "update", "delete"]);
 
 /** Shape emitted by the proposal agent (findingId resolved to a Finding by the harness). */
@@ -85,6 +96,24 @@ export interface Proposal {
   finding: Finding;
 }
 
+/** Cross-run ledger changes computed by the pipeline (pure data), applied to
+ *  fresh state by commitWatermark — never on dry runs. */
+export interface LedgerDelta {
+  upserts: CandidateDraft[];
+  matchedKeys: string[]; // candidates matched this run (promoted or not) — don't age
+  promotedKeys: string[]; // candidates that became proposals — delete
+  hadAnalyzedSessions: boolean; // zero-analyzed runs must not age candidates
+}
+
+export interface CandidateDraft {
+  patternKey: string; // FULL sha256 hex (display uses a 12-char slice)
+  category: z.infer<typeof FindingCategorySchema>;
+  summary: string;
+  detail: string;
+  sessionIds: string[]; // validated against the run's analyzed set
+  quotes: { sessionId: string; excerpt: string }[];
+}
+
 export interface RunReport {
   runId: string;
   projectPath: string;
@@ -94,6 +123,7 @@ export interface RunReport {
   findings: Finding[];
   survivingFindings: Finding[];
   proposals: Proposal[];
+  ledgerDelta?: LedgerDelta;
   usage: { costUsd?: number; inputTokens?: number; outputTokens?: number };
   partial: boolean;
   dryRun: boolean;
