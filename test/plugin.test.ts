@@ -150,6 +150,13 @@ describe("plugin scaffold validity (schema-drift canary)", () => {
     }
   });
 
+  it("the bare /dream command exists (auto-dream homage) and stays fire-and-forget", () => {
+    const content = readFileSync(join(ROOT, "plugin/commands/dream.md"), "utf8");
+    expect(content).toContain("description:");
+    expect(content).toContain("dream trigger --now");
+    expect(content).toContain("Do not block");
+  });
+
   it("all four skills exist with required frontmatter", () => {
     for (const skill of ["run", "review", "status", "setup"]) {
       const content = readFileSync(join(ROOT, `plugin/skills/${skill}/SKILL.md`), "utf8");

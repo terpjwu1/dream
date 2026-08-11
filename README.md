@@ -205,6 +205,8 @@ default** — enables ambient triggering). After that:
   starts as you begin working; its one-line notice lands in your session.
 - **Status line** — optional `dream statusline` wiring shows `💤 dreaming…`
   during runs and `🌙 N proposal(s) · /dream:review` when results land.
+- **`/dream`** — the classic in-session trigger (an homage to the original
+  auto-dream): start a background dream right now and keep working.
 - **`/dream:review`** — review proposals conversationally, evidence and all,
   without leaving your session. `/dream:run` and `/dream:status` for manual
   control.

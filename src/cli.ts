@@ -29,12 +29,13 @@ program
   .description("SessionStart hook entrypoint: dream in the background when backlog warrants")
   .option(...projectOption)
   .option("--stdin", "read the hook JSON payload from stdin to locate the project")
-  .action(async (opts: { project?: string; stdin?: boolean }) => {
+  .option("--now", "explicit user trigger: dream immediately, bypassing the ambient gate")
+  .action(async (opts: { project?: string; stdin?: boolean; now?: boolean }) => {
     const { triggerCommand, readStdinProject } = await import("./commands/trigger.js");
     const fromStdin = opts.stdin ? await readStdinProject() : undefined;
     const project = opts.project ?? fromStdin;
     if (!project) return; // unparseable hook payload — stay silent
-    await triggerCommand(resolve(project));
+    await triggerCommand(resolve(project), { now: opts.now });
   });
 
 program

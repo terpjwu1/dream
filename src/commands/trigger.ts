@@ -45,9 +45,12 @@ export function decideTrigger(input: {
 export async function gatherTriggerInput(
   projectPath: string,
   config: Config,
+  opts: { full?: boolean } = {},
 ): Promise<Parameters<typeof decideTrigger>[0]> {
   const initialized = existsSync(configPaths(projectPath).project);
-  if (!initialized || !config.trigger.enabled) {
+  // Ambient path short-circuits when disabled (hooks must be cheap); --now
+  // needs the real counts even when ambient dreaming is off.
+  if (!initialized || (!config.trigger.enabled && !opts.full)) {
     return { initialized, enabled: config.trigger.enabled, minSessions: 0, undreamed: 0, pendingBranches: 0, lockHeld: false };
   }
   const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
@@ -96,13 +99,39 @@ export async function readStdinProject(): Promise<string | undefined> {
   return hookPayloadProject(Buffer.concat(chunks).toString("utf8"));
 }
 
-export async function triggerCommand(projectPath: string): Promise<void> {
+export async function triggerCommand(
+  projectPath: string,
+  opts: { now?: boolean } = {},
+): Promise<void> {
   // Loop guard: never trigger from inside a dream-spawned process tree
   // (Codex plan-review finding — belt and suspenders; SDK sessions also run
   // with settingSources: [] so plugin hooks don't load there).
   if (process.env.DREAM_BACKGROUND === "1") return;
   const config = loadConfig(projectPath);
-  const decision = decideTrigger(await gatherTriggerInput(projectPath, config));
+  const input = await gatherTriggerInput(projectPath, config, { full: opts.now });
+
+  // --now (the /dream command): an explicit user request IS consent, so it
+  // bypasses the ambient-enable gate and the session threshold — but still
+  // requires init (there must be a memory store), respects the run lock, and
+  // defers to pending reviews.
+  if (opts.now) {
+    if (!input.initialized) {
+      console.log("dream: project not set up — run /dream:setup (or `dream init`) first");
+      return;
+    }
+    input.enabled = true;
+    input.minSessions = 1;
+    if (input.lockHeld) {
+      console.log("💤 dream: a dreaming run is already in progress");
+      return;
+    }
+    if (input.undreamed === 0 && input.pendingBranches === 0) {
+      console.log("dream: nothing to dream about — no un-dreamed sessions in the window");
+      return;
+    }
+  }
+
+  const decision = decideTrigger(input);
 
   if (decision.action === "none") return; // silent — hook adds nothing to context
   console.log(decision.message);
