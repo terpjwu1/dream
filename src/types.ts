@@ -107,7 +107,9 @@ export interface LedgerDelta {
 
 export interface CandidateDraft {
   patternKey: string; // FULL sha256 hex (display uses a 12-char slice)
-  category: z.infer<typeof FindingCategorySchema>;
+  // stale_memory never enters the ledger (floor-1 promotion) — excluding it
+  // at the type level makes buildLedgerDelta's runtime skip checkable.
+  category: Exclude<z.infer<typeof FindingCategorySchema>, "stale_memory">;
   summary: string;
   detail: string;
   sessionIds: string[]; // validated against the run's analyzed set

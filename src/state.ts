@@ -12,10 +12,22 @@ const DreamedSessionSchema = z.object({
   status: z.literal("analyzed"),
 });
 
+/** Categories that may be held as candidates: everything except stale_memory,
+ *  which promotes at floor 1 and must never linger in (or promote out of)
+ *  the ledger — enforced at parse time so legacy/malformed state can't
+ *  reintroduce it (Codex review finding). */
+export const CandidateCategorySchema = z.enum([
+  "recurring_failure",
+  "missing_knowledge",
+  "tool_failure",
+  "workflow_pattern",
+  "style_pattern",
+]);
+
 /** A near-miss finding held across runs until proven (promoted) or expired. */
 export const CandidateSchema = z.object({
   patternKey: z.string(), // FULL sha256 hex of normalized summary (record key)
-  category: z.string(),
+  category: CandidateCategorySchema,
   summary: z.string(),
   detail: z.string(),
   validatedSessionIds: z.array(z.string()), // IMMUTABLE once written; append-only

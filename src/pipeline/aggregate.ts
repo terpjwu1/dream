@@ -90,8 +90,16 @@ export function applyPrevalence(
           ...currentValidIds.filter((id) => !candidate.validatedSessionIds.includes(id)),
         ]
       : currentValidIds;
-    // Stored quotes are taken verbatim from state — the agent cannot reword them.
-    const quotes = candidate ? [...candidate.quotes, ...currentQuotes] : currentQuotes;
+    // Stored quotes are taken verbatim from state — the agent cannot reword
+    // them — and re-filtered against the evidence set, so a malformed state
+    // entry can never leak an unverifiable quote into a promoted finding
+    // (Codex review finding).
+    const quotes = candidate
+      ? [
+          ...candidate.quotes.filter((q) => evidenceIds.includes(q.sessionId)),
+          ...currentQuotes,
+        ]
+      : currentQuotes;
     const validationSet = candidate
       ? new Set([...candidate.validatedSessionIds, ...analyzedSessionIds])
       : new Set(analyzedSessionIds);

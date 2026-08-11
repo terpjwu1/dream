@@ -48,6 +48,41 @@ function candidate(overrides: Partial<Candidate> = {}): Candidate {
   };
 }
 
+describe("state hardening (Codex review round 2)", () => {
+  it("rejects stale_memory candidates at parse time (they must never enter the ledger)", () => {
+    const bad = candidate({ category: "stale_memory" as never });
+    expect(() =>
+      StateSchema.parse({ candidates: { [bad.patternKey]: bad } }),
+    ).toThrow();
+    expect(() =>
+      StateSchema.parse({ candidates: { [bad.patternKey]: { ...bad, category: "garbage" } } }),
+    ).toThrow();
+  });
+
+  it("re-filters stored quotes against the evidence set — a rogue quote cannot promote", () => {
+    // Malformed state: a quote whose sessionId is NOT in validatedSessionIds.
+    const cand = candidate({
+      validatedSessionIds: ["s1"],
+      quotes: [
+        { sessionId: "s1", excerpt: "legit stored quote" },
+        { sessionId: "ROGUE", excerpt: "unverifiable quote from nowhere" },
+      ],
+    });
+    const result = applyPrevalence(
+      [finding(["s2"], { matchedPatternKey: cand.patternKey })],
+      ["s2"],
+      config,
+      { [cand.patternKey]: cand },
+    );
+    const quotes = result.surviving[0]!.evidence.quotes;
+    expect(quotes.map((q) => q.excerpt)).toContain("legit stored quote");
+    expect(quotes.map((q) => q.sessionId)).not.toContain("ROGUE");
+    for (const q of quotes) {
+      expect(result.surviving[0]!.evidence.sessionIds).toContain(q.sessionId);
+    }
+  });
+});
+
 describe("patternKey", () => {
   it("is a full sha256 hex, stable under digits/paths/case variation", () => {
     const a = patternKey("Failed 3 times in /Users/x/proj/a.ts");
