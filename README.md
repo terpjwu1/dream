@@ -186,7 +186,7 @@ dreaming ambient:
 
 ```
 /plugin marketplace add terpjwu1/dream
-/plugin install dream@dream
+/plugin install dream@fiorastudio
 ```
 
 Then in any project: `/dream:setup` (installs nothing twice; runs `dream init`,

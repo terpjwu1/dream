@@ -1,11 +1,11 @@
 {
-  "name": "dream",
+  "name": "fiorastudio",
   "owner": {
     "name": "Steven Jieli Wu",
     "url": "https://stevenjieliwu.com/"
   },
   "metadata": {
-    "description": "dream — out-of-band memory curation for coding agents",
+    "description": "fiorastudio plugins — dream: out-of-band memory curation for coding agents",
     "version": "0.1.0"
   },
   "plugins": [

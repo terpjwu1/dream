@@ -154,9 +154,9 @@ describe("plugin scaffold validity (schema-drift canary)", () => {
     }
   });
 
-  it("marketplace.json points at the plugin dir", () => {
+  it("marketplace.json is the fiorastudio marketplace pointing at the plugin dir", () => {
     const market = JSON.parse(readFileSync(join(ROOT, ".claude-plugin/marketplace.json"), "utf8"));
-    expect(market.name).toBe("dream");
+    expect(market.name).toBe("fiorastudio"); // install spec: dream@fiorastudio
     expect(market.plugins[0]).toMatchObject({ name: "dream", source: "./plugin" });
   });
 });
