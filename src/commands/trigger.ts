@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, openSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { configPaths, loadConfig, type Config } from "../config.js";
 import { listDreamBranches, isGitRepo } from "../git.js";
@@ -65,11 +65,17 @@ export async function gatherTriggerInput(
   };
 }
 
+const MAX_STDIN_BYTES = 1024 * 1024;
+
+function asProjectString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
 /** Extract the project dir from a SessionStart hook payload. */
 export function hookPayloadProject(payloadJson: string): string | undefined {
   try {
     const payload = JSON.parse(payloadJson);
-    return payload?.cwd ?? payload?.workspace?.current_dir ?? undefined;
+    return asProjectString(payload?.cwd) ?? asProjectString(payload?.workspace?.current_dir);
   } catch {
     return undefined;
   }
@@ -77,7 +83,12 @@ export function hookPayloadProject(payloadJson: string): string | undefined {
 
 export async function readStdinProject(): Promise<string | undefined> {
   const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  let bytes = 0;
+  for await (const chunk of process.stdin) {
+    bytes += (chunk as Buffer).length;
+    if (bytes > MAX_STDIN_BYTES) return undefined; // hook payloads are small; refuse floods
+    chunks.push(chunk as Buffer);
+  }
   return hookPayloadProject(Buffer.concat(chunks).toString("utf8"));
 }
 
@@ -98,16 +109,21 @@ export async function triggerCommand(projectPath: string): Promise<void> {
   mkdirSync(logDir, { recursive: true });
   const logFd = openSync(join(logDir, `trigger-${Date.now()}.log`), "a");
   // Double-spawn contract: if two session starts race past decideTrigger,
-  // both spawn — but `dream run` acquires the O_EXCL run lock as its FIRST
-  // operation, so the loser exits immediately (logged, no badge written).
-  const child = spawn(
-    process.execPath,
-    [process.argv[1]!, "run", "--project", projectPath],
-    {
-      detached: true,
-      stdio: ["ignore", logFd, logFd],
-      env: { ...process.env, DREAM_BACKGROUND: "1" },
-    },
-  );
-  child.unref();
+  // both spawn — but `dream run` acquires the O_EXCL run lock before any
+  // pipeline work or badge writes, so the loser exits immediately (logged,
+  // no badge written).
+  try {
+    const child = spawn(
+      process.execPath,
+      [process.argv[1]!, "run", "--project", projectPath],
+      {
+        detached: true,
+        stdio: ["ignore", logFd, logFd],
+        env: { ...process.env, DREAM_BACKGROUND: "1" },
+      },
+    );
+    child.unref();
+  } finally {
+    closeSync(logFd); // child holds its own copy; don't leak ours until hook exit
+  }
 }

@@ -4,7 +4,8 @@ import { displayBadge } from "../badge.js";
 export function statuslineProject(payloadJson: string): string | undefined {
   try {
     const payload = JSON.parse(payloadJson);
-    return payload?.workspace?.current_dir ?? payload?.cwd ?? undefined;
+    const candidate = payload?.workspace?.current_dir ?? payload?.cwd;
+    return typeof candidate === "string" && candidate.trim() ? candidate : undefined;
   } catch {
     return undefined;
   }

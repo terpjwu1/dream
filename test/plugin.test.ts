@@ -53,6 +53,12 @@ describe("payload parsing", () => {
     expect(hookPayloadProject("not json")).toBeUndefined();
     expect(statuslineProject("")).toBeUndefined();
   });
+  it("rejects non-string and empty project fields (type-trust guard)", () => {
+    expect(hookPayloadProject('{"cwd":123}')).toBeUndefined();
+    expect(hookPayloadProject('{"cwd":"  "}')).toBeUndefined();
+    expect(hookPayloadProject('{"cwd":null,"workspace":{"current_dir":["x"]}}')).toBeUndefined();
+    expect(statuslineProject('{"workspace":{"current_dir":42}}')).toBeUndefined();
+  });
 });
 
 describe("badge lifecycle", () => {

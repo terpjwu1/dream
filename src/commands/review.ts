@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { clearBadge, writeBadge } from "../badge.js";
+import { stateFile } from "../paths.js";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { currentBranch, git, isGitRepo, listDreamBranches } from "../git.js";
@@ -72,13 +73,19 @@ export async function reviewCommand(
     );
   }
 
-  const remaining = (await listDreamBranches(memoryDir)).length;
   if (opts.accept || opts.reject) {
+    // A background run may be writing this badge concurrently — if the run
+    // lock is held, leave badge ownership to the run (it recounts at the
+    // end). Otherwise recount branches immediately before touching it.
+    const runActive = existsSync(`${stateFile(projectPath)}.lock`);
+    const remaining = (await listDreamBranches(memoryDir)).length;
     if (remaining > 0) {
       // Branch count, not proposal count — proposals-per-branch varies.
-      writeBadge(projectPath, `🌙 ${remaining} proposal branch(es) · /dream:review`);
+      if (!runActive) {
+        writeBadge(projectPath, `🌙 ${remaining} proposal branch(es) · /dream:review`);
+      }
       console.log(`${remaining} more pending branch(es) — run dream review again`);
-    } else {
+    } else if (!runActive) {
       clearBadge(projectPath);
     }
   }

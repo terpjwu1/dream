@@ -19,12 +19,16 @@ export async function runCommand(
   }
 
   const dryRun = opts.dryRun === true;
+  // Parse CLI options BEFORE the failure-badge try: a typo'd --since is a
+  // usage error, not a run failure, and must not persist a ⚠ badge.
+  const since = opts.since ? parseSince(opts.since as string) : undefined;
+  const maxSessions = opts.maxSessions as number | undefined;
   const releaseLock = acquireRunLock(projectPath);
   try {
     const runner = new ClaudeAgentRunner({ debugDir: runsDir("debug") });
     const report = await runPipeline(projectPath, config, runner, {
-      since: opts.since ? parseSince(opts.since as string) : undefined,
-      maxSessions: opts.maxSessions as number | undefined,
+      since,
+      maxSessions,
       dryRun,
     });
     printReport(report);
