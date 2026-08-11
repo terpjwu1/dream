@@ -77,13 +77,18 @@ export class FileMemoryStore {
     return readFile(this.resolvePath(relPath), "utf8");
   }
 
-  /** Render the whole store as one markdown doc for agent consumption. */
+  /** Render the whole store as one markdown doc for agent consumption.
+   *  Reads each file once (list() re-reading them was pure waste). */
   async snapshotMarkdown(maxBytes = 64 * 1024): Promise<string> {
     const entries = await this.list();
     if (entries.length === 0) return "# Memory store\n\n(empty — no memories yet)\n";
     const parts: string[] = ["# Memory store\n"];
     let used = parts[0]!.length;
     for (const entry of entries) {
+      if (used > maxBytes) {
+        parts.push(`\n---\n## ${entry.path}\n\n(omitted for size — description: ${entry.description})\n`);
+        continue;
+      }
       const content = await this.read(entry.path);
       const block = `\n---\n## ${entry.path}\n\n${content}\n`;
       if (used + block.length > maxBytes) {

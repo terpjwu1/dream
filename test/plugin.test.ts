@@ -130,20 +130,28 @@ describe("trigger config safety defaults", () => {
   });
 });
 
-describe("globallyDreamable", () => {
-  it("honors the profile-wide opt-in and its exclusions", async () => {
-    const { globallyDreamable } = await import("../src/commands/trigger.js");
+describe("resolveConsent", () => {
+  it("honors the profile-wide opt-in and its exclusions (one definition for trigger AND status)", async () => {
+    const { resolveConsent } = await import("../src/config.js");
     const { ConfigSchema } = await import("../src/config.js");
     const off = ConfigSchema.parse({});
     const on = ConfigSchema.parse({ trigger: { global: true } });
     const carved = ConfigSchema.parse({
       trigger: { global: true, excludeProjects: ["/scratch/", "clients/acme"] },
     });
-    expect(globallyDreamable("/Users/x/proj", off)).toBe(false);
-    expect(globallyDreamable("/Users/x/proj", on)).toBe(true);
-    expect(globallyDreamable("/Users/x/scratch/tmp", carved)).toBe(false);
-    expect(globallyDreamable("/Users/x/clients/acme/app", carved)).toBe(false);
-    expect(globallyDreamable("/Users/x/proj", carved)).toBe(true);
+    expect(resolveConsent("/Users/x/proj", off)).toEqual({
+      dreamable: false,
+      ambient: false,
+      source: "none",
+    });
+    expect(resolveConsent("/Users/x/proj", on)).toEqual({
+      dreamable: true,
+      ambient: true, // global consent IS ambient consent
+      source: "global",
+    });
+    expect(resolveConsent("/Users/x/scratch/tmp", carved).dreamable).toBe(false);
+    expect(resolveConsent("/Users/x/clients/acme/app", carved).dreamable).toBe(false);
+    expect(resolveConsent("/Users/x/proj", carved).dreamable).toBe(true);
   });
 });
 

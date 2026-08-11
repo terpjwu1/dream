@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { z } from "zod";
-import { dreamHome } from "./paths.js";
+import { defaultMemoryDir, dreamHome } from "./paths.js";
 
 const RuntimeSchema = z.object({
   provider: z.string().default("claude-agent-sdk"),
   model: z.string().default("claude-fable-5"),
-  maxSteps: z.number().int().positive().optional(),
 });
 
 export const ConfigSchema = z.object({
@@ -27,10 +26,8 @@ export const ConfigSchema = z.object({
     .prefault({}),
   transcripts: z
     .object({
-      source: z.string().default("claude-code"),
       sinceDays: z.number().positive().default(14),
       maxSessionsPerRun: z.number().int().positive().default(20),
-      includeSubagents: z.boolean().default(false),
     })
     .prefault({}),
   budget: z
@@ -97,4 +94,40 @@ export function loadConfig(projectPath: string): Config {
   const global = readJsonIfExists(paths.global) ?? {};
   const project = readJsonIfExists(paths.project) ?? {};
   return ConfigSchema.parse(deepMerge(global, project));
+}
+
+/**
+ * The one place `config.memory.dir ?? default` is resolved. Always absolute:
+ * a relative memory.dir resolves against the PROJECT, never the process cwd
+ * (Codex merge-gate finding — a cwd-relative git init is how you provision
+ * the wrong directory).
+ */
+export function memoryDirFor(projectPath: string, config: Config): string {
+  return config.memory.dir ? resolve(projectPath, config.memory.dir) : defaultMemoryDir(projectPath);
+}
+
+export interface Consent {
+  /** May this project be dreamed at all? */
+  dreamable: boolean;
+  /** May dreaming start without an explicit user command? */
+  ambient: boolean;
+  source: "project" | "global" | "none";
+}
+
+/**
+ * The single definition of consent, consumed by trigger AND status so they
+ * can never disagree: a project is dreamable via its own init or the
+ * profile-wide opt-in (`dream init --global`, minus exclusions); global
+ * consent implies ambient consent — that is what --global grants.
+ */
+export function resolveConsent(projectPath: string, config: Config): Consent {
+  if (existsSync(configPaths(projectPath).project)) {
+    return { dreamable: true, ambient: config.trigger.enabled, source: "project" };
+  }
+  const global =
+    config.trigger.global &&
+    !config.trigger.excludeProjects.some((pattern) => projectPath.includes(pattern));
+  return global
+    ? { dreamable: true, ambient: true, source: "global" }
+    : { dreamable: false, ambient: false, source: "none" };
 }

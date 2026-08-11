@@ -34,7 +34,7 @@ process.stdin.on("end", () => {
   try {
     const payload = JSON.parse(input.toString("utf8"));
     // Same fallback chain as the CLI's hookPayloadProject — keep in sync.
-    const candidate = payload?.cwd ?? payload?.workspace?.current_dir;
+    const candidate = payload?.workspace?.current_dir ?? payload?.cwd;
     const cwd = typeof candidate === "string" && candidate.trim() ? candidate : undefined;
     if (!cwd) process.exit(0);
     // Dreamable via per-project init OR the profile-wide opt-in (exclusions

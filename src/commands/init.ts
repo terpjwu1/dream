@@ -1,9 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ConfigSchema, configPaths } from "../config.js";
-import { currentBranch, git, isGitRepo } from "../git.js";
+import { ConfigSchema, configPaths, loadConfig, memoryDirFor } from "../config.js";
+import { currentBranch, initRepoWithBaseline, isGitRepo } from "../git.js";
 import { FileMemoryStore } from "../memory/memoryStore.js";
-import { defaultMemoryDir } from "../paths.js";
 
 export async function initCommand(
   projectPath: string,
@@ -55,8 +54,8 @@ export async function initCommand(
     );
   }
 
-  // 2. Ensure the memory store exists.
-  const memoryDir = defaultMemoryDir(projectPath);
+  // 2. Ensure the memory store exists (honors a custom config.memory.dir).
+  const memoryDir = memoryDirFor(projectPath, loadConfig(projectPath));
   if (!existsSync(memoryDir)) {
     mkdirSync(memoryDir, { recursive: true });
     console.log(`created memory dir ${memoryDir}`);
@@ -72,9 +71,7 @@ export async function initCommand(
     if (await isGitRepo(memoryDir)) {
       console.log(`memory dir already a git repo (branch: ${await currentBranch(memoryDir)})`);
     } else {
-      await git(memoryDir, "init", "-b", "main");
-      await git(memoryDir, "add", "-A");
-      await git(memoryDir, "commit", "-m", "dream init: memory store baseline");
+      await initRepoWithBaseline(memoryDir, "dream init: memory store baseline");
       console.log(`initialized git repo in ${memoryDir} (baseline committed)`);
     }
   }

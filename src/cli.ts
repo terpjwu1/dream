@@ -55,10 +55,19 @@ program
   .option("--max-sessions <n>", "cap sessions this run", (v: string) => parseInt(v, 10))
   .option("--mode <mode>", "review mode override: branch | auto")
   .option("--model <id>", "model override for all agents")
-  .action(async (opts: Record<string, unknown>) => {
-    const { runCommand } = await import("./commands/run.js");
-    await runCommand(resolve((opts.project as string) ?? process.cwd()), opts);
-  });
+  .action(
+    async (opts: {
+      project?: string;
+      since?: string;
+      dryRun?: boolean;
+      maxSessions?: number;
+      mode?: string;
+      model?: string;
+    }) => {
+      const { runCommand } = await import("./commands/run.js");
+      await runCommand(resolve(opts.project ?? process.cwd()), opts);
+    },
+  );
 
 program
   .command("review")

@@ -49,12 +49,25 @@ export function saveState(projectPath: string, state: State): void {
 
 const STALE_LOCK_MS = 60 * 60 * 1000;
 
+export function lockFile(projectPath: string): string {
+  return `${stateFile(projectPath)}.lock`;
+}
+
+/** Read-only "is a run active" check, TTL-aware like acquireRunLock. */
+export function runLockHeld(projectPath: string): boolean {
+  try {
+    return Date.now() - statSync(lockFile(projectPath)).mtimeMs < STALE_LOCK_MS;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Per-project run lock (O_EXCL create). Prevents two concurrent `dream run`s
  * from selecting and analyzing the same sessions. Returns a release function.
  */
 export function acquireRunLock(projectPath: string): () => void {
-  const path = `${stateFile(projectPath)}.lock`;
+  const path = lockFile(projectPath);
   mkdirSync(dirname(path), { recursive: true });
   // Owner token: takeover and release are guarded by content, not just
   // existence, so a stale-lock steal can't be double-won silently and

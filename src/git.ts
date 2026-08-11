@@ -38,6 +38,18 @@ export async function currentBranch(cwd: string): Promise<string> {
   }
 }
 
+/** listDreamBranches for possibly-nonexistent repos: [] instead of throwing. */
+export async function listDreamBranchesSafe(cwd: string): Promise<string[]> {
+  return (await isGitRepo(cwd)) ? listDreamBranches(cwd) : [];
+}
+
+/** git init -b main + baseline commit — shared by `dream init` and branch-mode auto-provisioning. */
+export async function initRepoWithBaseline(cwd: string, message: string): Promise<void> {
+  await git(cwd, "init", "-b", "main");
+  await git(cwd, "add", "-A");
+  await git(cwd, "commit", "-m", message);
+}
+
 export async function listDreamBranches(cwd: string): Promise<string[]> {
   const out = await git(
     cwd,

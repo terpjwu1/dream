@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, openSync } from "node:fs";
+import { closeSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
-import { configPaths, loadConfig, type Config } from "../config.js";
-import { listDreamBranches, isGitRepo } from "../git.js";
-import { defaultMemoryDir, dreamHome, stateFile } from "../paths.js";
+import { loadConfig, memoryDirFor, resolveConsent, type Config } from "../config.js";
+import { listDreamBranchesSafe } from "../git.js";
+import { runsRoot } from "../paths.js";
+import { projectFromPayload, readStdinCapped } from "../payload.js";
 import { selectSessions } from "../pipeline/select.js";
-import { loadState } from "../state.js";
+import { loadState, runLockHeld } from "../state.js";
 
 export type TriggerDecision =
   | { action: "none" }
@@ -67,73 +68,44 @@ export function decideTrigger(
     : { action: "none" };
 }
 
-/** Global-mode opt-in check: enabled profile-wide and not excluded. */
-export function globallyDreamable(projectPath: string, config: Config): boolean {
-  return (
-    config.trigger.global &&
-    !config.trigger.excludeProjects.some((pattern) => projectPath.includes(pattern))
-  );
-}
-
 export async function gatherTriggerInput(
   projectPath: string,
   config: Config,
   opts: { full?: boolean } = {},
 ): Promise<Parameters<typeof decideTrigger>[0]> {
-  // A project is dreamable via its own init OR the profile-wide opt-in.
-  const initialized =
-    existsSync(configPaths(projectPath).project) || globallyDreamable(projectPath, config);
-  // Ambient path short-circuits when disabled (hooks must be cheap); --now
-  // needs the real counts even when ambient dreaming is off. Global mode
-  // implies ambient consent (that's what --global grants).
-  const enabled = config.trigger.enabled || globallyDreamable(projectPath, config);
-  if (!initialized || (!enabled && !opts.full)) {
-    return { initialized, enabled, minSessions: 0, undreamed: 0, pendingBranches: 0, lockHeld: false };
+  const consent = resolveConsent(projectPath, config);
+  // Ambient path short-circuits when not consented (hooks must be cheap);
+  // --now needs the real counts even when ambient dreaming is off.
+  if (!consent.dreamable || (!consent.ambient && !opts.full)) {
+    return {
+      initialized: consent.dreamable,
+      enabled: consent.ambient,
+      minSessions: 0,
+      undreamed: 0,
+      pendingBranches: 0,
+      lockHeld: false,
+    };
   }
-  const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
-  const pendingBranches = (await isGitRepo(memoryDir))
-    ? (await listDreamBranches(memoryDir)).length
-    : 0;
-  const { selected } = await selectSessions(projectPath, config, loadState(projectPath));
+  const [branches, { selected }] = await Promise.all([
+    listDreamBranchesSafe(memoryDirFor(projectPath, config)),
+    selectSessions(projectPath, config, loadState(projectPath)),
+  ]);
   return {
-    initialized,
-    enabled,
+    initialized: consent.dreamable,
+    enabled: consent.ambient,
     minSessions: config.trigger.minSessions,
     undreamed: selected.length,
-    pendingBranches,
-    lockHeld: existsSync(`${stateFile(projectPath)}.lock`),
+    pendingBranches: branches.length,
+    lockHeld: runLockHeld(projectPath),
   };
 }
 
-const MAX_STDIN_BYTES = 1024 * 1024;
-
-function asProjectString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
-
 /** Extract the project dir from a SessionStart hook payload. */
-export function hookPayloadProject(payloadJson: string): string | undefined {
-  try {
-    const payload = JSON.parse(payloadJson);
-    return asProjectString(payload?.cwd) ?? asProjectString(payload?.workspace?.current_dir);
-  } catch {
-    return undefined;
-  }
-}
+export const hookPayloadProject = projectFromPayload;
 
 export async function readStdinProject(): Promise<string | undefined> {
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const chunk of process.stdin) {
-    bytes += (chunk as Buffer).length;
-    if (bytes > MAX_STDIN_BYTES) {
-      // Hook payloads are tiny; a flood is refused loudly so it's diagnosable.
-      console.error(`dream trigger: stdin payload exceeded ${MAX_STDIN_BYTES} bytes — ignoring`);
-      return undefined;
-    }
-    chunks.push(chunk as Buffer);
-  }
-  return hookPayloadProject(Buffer.concat(chunks).toString("utf8"));
+  const raw = await readStdinCapped();
+  return raw === undefined ? undefined : projectFromPayload(raw);
 }
 
 export async function triggerCommand(
@@ -153,7 +125,7 @@ export async function triggerCommand(
   if (decision.action !== "run") return;
 
   // Detached background run: survives the hook process, logs to a file.
-  const logDir = join(dreamHome(), "runs");
+  const logDir = runsRoot();
   mkdirSync(logDir, { recursive: true });
   const logFd = openSync(join(logDir, `trigger-${Date.now()}.log`), "a");
   // Double-spawn contract: if two session starts race past decideTrigger,

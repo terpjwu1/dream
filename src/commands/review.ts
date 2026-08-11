@@ -1,10 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
-import { clearBadge, writeBadge } from "../badge.js";
-import { stateFile } from "../paths.js";
 import { join } from "node:path";
-import { loadConfig } from "../config.js";
+import { clearBadge, writeBadge } from "../badge.js";
+import { loadConfig, memoryDirFor } from "../config.js";
 import { currentBranch, git, isGitRepo, listDreamBranches } from "../git.js";
-import { defaultMemoryDir } from "../paths.js";
+import { runLockHeld } from "../state.js";
 
 /** Branch mode: handle ONE dream/* branch at a time, oldest first. */
 export async function reviewCommand(
@@ -12,7 +11,7 @@ export async function reviewCommand(
   opts: { accept?: boolean; reject?: boolean },
 ): Promise<void> {
   const config = loadConfig(projectPath);
-  const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
+  const memoryDir = memoryDirFor(projectPath, config);
 
   if (config.reviewMode === "auto") {
     const changelog = join(memoryDir, "CHANGELOG.md");
@@ -80,7 +79,7 @@ export async function reviewCommand(
     // self-healing: an active run rewrites the badge at every stage and at
     // completion, so any stale touch here is overwritten by the run's truth.
     const remaining = (await listDreamBranches(memoryDir)).length;
-    const runActive = existsSync(`${stateFile(projectPath)}.lock`);
+    const runActive = runLockHeld(projectPath);
     if (remaining > 0) {
       // Branch count, not proposal count — proposals-per-branch varies.
       if (!runActive) {

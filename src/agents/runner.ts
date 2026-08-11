@@ -26,7 +26,6 @@ export interface AgentUsage {
   inputTokens?: number;
   outputTokens?: number;
   costUsd?: number;
-  providerMetadata?: unknown;
 }
 
 export interface AgentRuntime {
@@ -55,14 +54,6 @@ export interface AgentRunner {
   readonly capabilities: RunnerCapabilities;
   runJson<T>(req: RunJsonRequest<T>): Promise<RunJsonResult<T>>;
 }
-
-export interface TokenEstimator {
-  estimate(text: string): number;
-}
-
-export const charsPerTokenEstimator: TokenEstimator = {
-  estimate: (text) => Math.ceil(text.length / 4),
-};
 
 /**
  * Pull the last JSON document out of agent text. Fence closings are

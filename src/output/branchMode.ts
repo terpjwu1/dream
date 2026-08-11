@@ -1,8 +1,8 @@
-import type { Config } from "../config.js";
-import { currentBranch, git, isClean, isGitRepo } from "../git.js";
+import { memoryDirFor, type Config } from "../config.js";
+import { currentBranch, git, initRepoWithBaseline, isClean, isGitRepo } from "../git.js";
 import { FileMemoryStore } from "../memory/memoryStore.js";
-import { defaultMemoryDir } from "../paths.js";
 import { redactSecrets } from "../redact.js";
+import { formatEvidenceLines, formatPrevalence } from "./evidence.js";
 import type { Proposal, RunReport } from "../types.js";
 
 /**
@@ -15,7 +15,7 @@ export async function applyBranchMode(
   config: Config,
   report: RunReport,
 ): Promise<void> {
-  const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
+  const memoryDir = memoryDirFor(projectPath, config); // always absolute
   const store = new FileMemoryStore(memoryDir);
 
   // Preflight — fail closed before touching anything. A missing repo is
@@ -23,9 +23,7 @@ export async function applyBranchMode(
   // this only ever touches dream's own store dir, never user code.
   if (!(await isGitRepo(memoryDir))) {
     await store.regenerateIndex(); // creates the dir + MEMORY.md if absent
-    await git(memoryDir, "init", "-b", "main");
-    await git(memoryDir, "add", "-A");
-    await git(memoryDir, "commit", "-m", "dream: memory store baseline (auto-provisioned)");
+    await initRepoWithBaseline(memoryDir, "dream: memory store baseline (auto-provisioned)");
   }
   if (!(await isClean(memoryDir))) {
     throw new Error(`memory repo has uncommitted changes — commit or stash them first`);
@@ -73,13 +71,12 @@ function commitSubject(p: Proposal): string {
 }
 
 function commitBody(p: Proposal, report: RunReport): string {
-  const ev = p.finding.evidence;
   const lines = [
     p.rationale,
     "",
-    `Pattern seen in ${ev.sessionIds.length}/${ev.sessionsAnalyzed} analyzed sessions.`,
+    formatPrevalence(p.finding),
     "",
-    ...ev.quotes.map((q) => `Evidence: session ${q.sessionId.slice(0, 8)} — "${q.excerpt}"`),
+    ...formatEvidenceLines(p.finding),
     "",
     `Run: ${report.runId}`,
     `Finding: ${p.finding.id} [${p.finding.category}]`,

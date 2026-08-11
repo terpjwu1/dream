@@ -4,15 +4,16 @@ import { join } from "node:path";
 import type { AgentRunner } from "../agents/runner.js";
 import type { Config } from "../config.js";
 import { digestSession } from "../digest/digester.js";
+import { memoryDirFor } from "../config.js";
 import { FileMemoryStore } from "../memory/memoryStore.js";
-import { defaultMemoryDir, runsDir } from "../paths.js";
+import { runsDir } from "../paths.js";
 import { ClaudeCodeSource } from "../sources/claudeCode.js";
 import { loadState, markDreamed, saveState } from "../state.js";
 import type { RunReport } from "../types.js";
 import { writeBadge } from "../badge.js";
 import { aggregateFindings, applyPrevalence } from "./aggregate.js";
 import { analyzeBatches, packBatches, stageBatch } from "./analyze.js";
-import { RunBudget } from "./budget.js";
+import { RunBudget, mapWithConcurrency } from "./budget.js";
 import { generateProposals, redactFinding } from "./propose.js";
 import { selectSessions } from "./select.js";
 
@@ -34,7 +35,7 @@ export async function runPipeline(
   const runDir = runsDir(runId);
   mkdirSync(runDir, { recursive: true });
   const state = loadState(projectPath);
-  const store = new FileMemoryStore(config.memory.dir ?? defaultMemoryDir(projectPath));
+  const store = new FileMemoryStore(memoryDirFor(projectPath, config));
   const budget = RunBudget.fromConfig(config);
 
   // 1. Select + digest
@@ -60,12 +61,9 @@ export async function runPipeline(
   const perSessionBudget = Math.floor(
     config.budget.maxDigestTokensPerBatch / Math.min(selected.length, config.budget.batchSizeSessions),
   );
-  const digests = [];
-  for (const ref of selected) {
-    digests.push(
-      await digestSession(ref, source.readSession(ref), { maxTokens: perSessionBudget }),
-    );
-  }
+  const digests = await mapWithConcurrency(selected, 4, (ref) =>
+    digestSession(ref, source.readSession(ref), { maxTokens: perSessionBudget }),
+  );
   log(
     `digested ${digests.length} session(s), ` +
       `${digests.reduce((s, d) => s + d.approxTokens, 0)} est. tokens total`,
@@ -81,6 +79,9 @@ export async function runPipeline(
   badge(`💤 dreaming — analyzing ${batches.length} batch(es)…`);
   const analysis = await analyzeBatches(batches, runner, config, budget);
   for (const err of analysis.failedBatchErrors) log(`  ⚠ analyzer failed: ${err}`);
+  if (analysis.skippedForBudget > 0) {
+    log(`  ⚠ ${analysis.skippedForBudget} batch(es) skipped — budget cap reached`);
+  }
   log(
     `analysis: ${analysis.findings.length} raw finding(s) from ` +
       `${analysis.analyzedSessionIds.length}/${selected.length} session(s)`,

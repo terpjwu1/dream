@@ -1,10 +1,10 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Config } from "../config.js";
+import { memoryDirFor, type Config } from "../config.js";
 import { git, isGitRepo } from "../git.js";
 import { FileMemoryStore } from "../memory/memoryStore.js";
-import { defaultMemoryDir } from "../paths.js";
 import { redactSecrets } from "../redact.js";
+import { formatEvidenceLines, formatPrevalence } from "./evidence.js";
 import type { Proposal, RunReport } from "../types.js";
 
 /**
@@ -17,7 +17,7 @@ export async function applyAutoMode(
   config: Config,
   report: RunReport,
 ): Promise<void> {
-  const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
+  const memoryDir = memoryDirFor(projectPath, config);
   const store = new FileMemoryStore(memoryDir);
 
   const entries: string[] = [
@@ -51,12 +51,11 @@ function priorContent(memoryDir: string, p: Proposal): string | undefined {
 }
 
 function changelogEntry(p: Proposal, prior: string | undefined): string[] {
-  const ev = p.finding.evidence;
   const lines = [
     `### ${p.op} ${p.path}`,
     `Why: ${p.rationale}`,
-    `Prevalence: ${ev.sessionIds.length}/${ev.sessionsAnalyzed} sessions`,
-    ...ev.quotes.map((q) => `Evidence: ${q.sessionId.slice(0, 8)} — "${q.excerpt}"`),
+    formatPrevalence(p.finding),
+    ...formatEvidenceLines(p.finding),
   ];
   if (prior !== undefined) {
     lines.push(

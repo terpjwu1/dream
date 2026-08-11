@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { readdir, stat, open } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
 import { claudeProjectDir } from "../paths.js";
@@ -22,23 +22,28 @@ export class ClaudeCodeSource implements TranscriptSource {
       throw err;
     }
 
-    const refs: SessionRef[] = [];
-    for (const name of entries) {
-      if (!SESSION_FILE.test(name)) continue;
-      const filePath = join(dir, name);
-      const info = await stat(filePath);
-      if (info.size === 0) continue;
-      const endedAt = info.mtime;
-      if (opts?.since && endedAt < opts.since) continue;
-      refs.push({
-        sessionId: basename(name, ".jsonl"),
-        filePath,
-        startedAt: (await firstTimestamp(filePath)) ?? info.birthtime,
-        endedAt,
-        sizeBytes: info.size,
-        projectPath,
-      });
-    }
+    // birthtime approximates session start well enough for selection and
+    // digest headers; reading each file's head for the first record timestamp
+    // cost an open+64KB read per session on the hook path.
+    const candidates = entries.filter((name) => SESSION_FILE.test(name));
+    const refs = (
+      await Promise.all(
+        candidates.map(async (name): Promise<SessionRef | undefined> => {
+          const filePath = join(dir, name);
+          const info = await stat(filePath);
+          if (info.size === 0) return undefined;
+          if (opts?.since && info.mtime < opts.since) return undefined;
+          return {
+            sessionId: basename(name, ".jsonl"),
+            filePath,
+            startedAt: info.birthtime,
+            endedAt: info.mtime,
+            sizeBytes: info.size,
+            projectPath,
+          };
+        }),
+      )
+    ).filter((ref): ref is SessionRef => ref !== undefined);
     return refs.sort((a, b) => a.endedAt.getTime() - b.endedAt.getTime());
   }
 
@@ -139,24 +144,4 @@ function pickText(content: unknown): string | undefined {
     if (texts.length) return texts.join("\n");
   }
   return undefined;
-}
-
-/** Read just enough of the file head to find the first record timestamp. */
-async function firstTimestamp(filePath: string): Promise<Date | undefined> {
-  const fh = await open(filePath, "r");
-  try {
-    const buf = Buffer.alloc(64 * 1024);
-    const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
-    for (const line of buf.toString("utf8", 0, bytesRead).split("\n")) {
-      try {
-        const ts = JSON.parse(line)?.timestamp;
-        if (ts) return new Date(ts);
-      } catch {
-        continue;
-      }
-    }
-    return undefined;
-  } finally {
-    await fh.close();
-  }
 }

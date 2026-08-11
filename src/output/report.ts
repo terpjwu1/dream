@@ -1,3 +1,4 @@
+import { shortId } from "./evidence.js";
 import type { RunReport } from "../types.js";
 
 export function printReport(report: RunReport): void {
@@ -11,7 +12,7 @@ export function printReport(report: RunReport): void {
   console.log(
     `sessions: ${report.sessionsAnalyzed.length}/${report.sessionsSelected} analyzed` +
       (report.sessionsFailed.length > 0
-        ? ` — FAILED (will retry next run): ${report.sessionsFailed.map((s) => s.slice(0, 8)).join(", ")}`
+        ? ` — FAILED (will retry next run): ${report.sessionsFailed.map(shortId).join(", ")}`
         : ""),
   );
   const { costUsd, inputTokens, outputTokens } = report.usage;
@@ -26,7 +27,7 @@ export function printReport(report: RunReport): void {
       console.log(
         `  • [${f.category}] ${f.summary}` +
           `\n    seen in ${f.evidence.sessionIds.length}/${f.evidence.sessionsAnalyzed} sessions` +
-          ` (${f.evidence.sessionIds.map((s) => s.slice(0, 8)).join(", ")})`,
+          ` (${f.evidence.sessionIds.map(shortId).join(", ")})`,
       );
     }
   }
@@ -37,7 +38,7 @@ export function printReport(report: RunReport): void {
       console.log(`  ${p.op.toUpperCase().padEnd(6)} ${p.path}`);
       console.log(`         why: ${p.rationale.split("\n")[0]}`);
       for (const q of p.finding.evidence.quotes.slice(0, 2)) {
-        console.log(`         evidence ${q.sessionId.slice(0, 8)}: "${q.excerpt.slice(0, 90)}"`);
+        console.log(`         evidence ${shortId(q.sessionId)}: "${q.excerpt.slice(0, 90)}"`);
       }
     }
   } else {

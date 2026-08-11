@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
-import { loadConfig, configPaths } from "../config.js";
+import { loadConfig, configPaths, memoryDirFor, resolveConsent } from "../config.js";
+import { listDreamBranchesSafe } from "../git.js";
 import { loadState } from "../state.js";
-import { claudeProjectDir, defaultMemoryDir, stateFile } from "../paths.js";
+import { claudeProjectDir, stateFile } from "../paths.js";
+import { selectSessions } from "../pipeline/select.js";
 
 export async function statusCommand(
   projectPath: string,
@@ -10,20 +12,22 @@ export async function statusCommand(
   const config = loadConfig(projectPath);
   const state = loadState(projectPath);
   const paths = configPaths(projectPath);
+  const memoryDir = memoryDirFor(projectPath, config);
+  // Same consent definition the trigger uses — status can never disagree.
+  const consent = resolveConsent(projectPath, config);
+  const [pendingBranches, { selected, skippedLive }] = await Promise.all([
+    listDreamBranchesSafe(memoryDir),
+    selectSessions(projectPath, config, state),
+  ]);
 
   if (opts.json) {
-    const { selectSessions } = await import("../pipeline/select.js");
-    const { isGitRepo, listDreamBranches } = await import("../git.js");
-    const { selected, skippedLive } = await selectSessions(projectPath, config, state);
-    const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
-    const pendingBranches = (await isGitRepo(memoryDir))
-      ? await listDreamBranches(memoryDir)
-      : [];
     console.log(
       JSON.stringify(
         {
           project: projectPath,
-          initialized: existsSync(paths.project),
+          initialized: consent.dreamable,
+          consentSource: consent.source,
+          ambient: consent.ambient,
           reviewMode: config.reviewMode,
           memoryDir,
           undreamed: selected.length,
@@ -41,9 +45,12 @@ export async function statusCommand(
 
   console.log(`project:     ${projectPath}`);
   console.log(`transcripts: ${claudeProjectDir(projectPath)}`);
-  console.log(`memory dir:  ${config.memory.dir ?? defaultMemoryDir(projectPath)}`);
+  console.log(`memory dir:  ${memoryDir}`);
   console.log(
     `config:      ${existsSync(paths.project) ? paths.project : existsSync(paths.global) ? paths.global : "(defaults — run `dream init`)"}`,
+  );
+  console.log(
+    `consent:     ${consent.source}${consent.ambient ? " (ambient)" : consent.dreamable ? " (manual only)" : ""}`,
   );
   console.log(`review mode: ${config.reviewMode}`);
   console.log(`state file:  ${stateFile(projectPath)}`);
@@ -60,8 +67,6 @@ export async function statusCommand(
     console.log("last run:    never");
   }
 
-  const { selectSessions } = await import("../pipeline/select.js");
-  const { selected, skippedLive } = await selectSessions(projectPath, config, state);
   const totalKb = selected.reduce((sum, r) => sum + r.sizeBytes, 0) / 1024;
   console.log(
     `un-dreamed:  ${selected.length} session(s) in window (${totalKb.toFixed(0)}KB)` +
@@ -73,4 +78,7 @@ export async function statusCommand(
     );
   }
   if (selected.length > 10) console.log(`  … and ${selected.length - 10} more`);
+  if (pendingBranches.length > 0) {
+    console.log(`pending:     ${pendingBranches.length} dream branch(es) — run \`dream review\``);
+  }
 }

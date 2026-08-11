@@ -214,8 +214,9 @@ changed file, for easy revert.
   analysis *and* output both succeeded; failed sessions are retried next run.
   Sessions modified in the last 10 minutes are skipped as live, and a
   per-project run lock prevents concurrent double-analysis.
-- **Hard budget cap** — cost is metered per run; new agent launches stop once
-  the cap is crossed.
+- **Budget cap** — cost is metered per run; new agent launches stop once the
+  cap is crossed. (In-flight calls finish, so worst-case overshoot is bounded
+  by concurrency × one call — a launch gate, not an atomic spend fence.)
 
 93/93 tests cover exactly these properties (real JSONL edge cases, torn live
 sessions, path traversal + symlink escapes, hallucinated-id rejection,

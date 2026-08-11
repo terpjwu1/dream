@@ -1,9 +1,11 @@
 import type { SessionDigest, SessionRecord, SessionRef } from "../types.js";
 import { isSignalResult, renderDigest, type DigestCaps, type DigestEntry } from "./render.js";
 
-/** chars/4 fallback estimator; swapped for a provider-aware one via config later. */
+/** The one chars-per-token heuristic (both directions derive from it). */
+export const CHARS_PER_TOKEN = 4;
+
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
 
 export const DEFAULT_CAPS: DigestCaps = {
@@ -87,15 +89,20 @@ export async function digestSession(
   if (opts.maxTokens) {
     const fits = () => estimateTokens(markdown) <= opts.maxTokens!;
 
-    // Pass 1: tighten per-entry caps geometrically (floors prevent an
-    // infinite loop on pathological sessions).
-    while (!fits() && caps.toolError > 200) {
+    // Pass 1: shrink per-entry caps by the measured overage ratio in ONE step
+    // (with floors), instead of iterating geometric decay with a full O(N)
+    // re-render per iteration.
+    if (!fits()) {
+      const ratio = Math.min(
+        1,
+        (opts.maxTokens * CHARS_PER_TOKEN) / Math.max(1, markdown.length),
+      ) * 0.9; // 10% slack for per-entry overhead the caps don't control
       caps = {
-        userPrompt: Math.max(200, Math.floor(caps.userPrompt * 0.6)),
-        toolError: Math.max(200, Math.floor(caps.toolError * 0.6)),
-        assistantText: Math.max(150, Math.floor(caps.assistantText * 0.6)),
-        toolInput: Math.max(80, Math.floor(caps.toolInput * 0.6)),
-        toolStdout: Math.max(60, Math.floor(caps.toolStdout * 0.6)),
+        userPrompt: Math.max(200, Math.floor(caps.userPrompt * ratio)),
+        toolError: Math.max(200, Math.floor(caps.toolError * ratio)),
+        assistantText: Math.max(150, Math.floor(caps.assistantText * ratio)),
+        toolInput: Math.max(80, Math.floor(caps.toolInput * ratio)),
+        toolStdout: Math.max(60, Math.floor(caps.toolStdout * ratio)),
       };
       markdown = renderDigest(ref, kept, meta, caps);
     }
@@ -132,10 +139,12 @@ export async function digestSession(
     }
 
     // Last resort: hard clip so one monster session can never blow the batch.
+    // Plain slice can split a surrogate pair at the boundary; accept the
+    // 1-char blemish rather than a code-point dance.
     if (!fits()) {
       const marker = "\n…[digest hard-clipped at token budget]";
-      const budgetChars = Math.max(0, opts.maxTokens * 4 - marker.length);
-      markdown = [...markdown.slice(0, budgetChars + 1)].slice(0, -1).join("") + marker;
+      const budgetChars = Math.max(0, opts.maxTokens * CHARS_PER_TOKEN - marker.length);
+      markdown = markdown.slice(0, budgetChars) + marker;
     }
   }
 

@@ -141,7 +141,7 @@ describe("applyAutoMode", () => {
     const changelog = readFileSync(join(dir, "CHANGELOG.md"), "utf8");
     expect(changelog).toContain("run 2026-08-09-abc123 (auto)");
     expect(changelog).toContain("### create deploy-env.md");
-    expect(changelog).toContain("Prevalence: 2/4 sessions");
+    expect(changelog).toContain("Pattern seen in 2/4 analyzed sessions.");
     expect(changelog).toContain("old body"); // prior content preserved for revert
 
     const index = readFileSync(join(dir, "MEMORY.md"), "utf8");
