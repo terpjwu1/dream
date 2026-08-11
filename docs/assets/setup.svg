@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="740" height="204" viewBox="0 0 740 204" role="img" aria-label="Claude Code session after running /dream:setup: project opted in, steering set, ambient dreaming on, status line chained">
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; fill: #e6edf3; white-space: pre; }
+    .title { font-size: 12px; fill: #8b949e; }
+    .prompt { fill: #d2a8ff; }
+    .ok { fill: #3fb950; }
+    .em { fill: #79c0ff; }
+    .dim { fill: #8b949e; }
+  </style>
+  <rect x="0.5" y="0.5" width="739" height="203" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <path d="M0.5 10.5 a10 10 0 0 1 10-10 h719 a10 10 0 0 1 10 10 v25.5 h-739 z" fill="#161b22"/>
+  <line x1="0.5" y1="36" x2="739.5" y2="36" stroke="#30363d"/>
+  <circle cx="22" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="42" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="62" cy="18" r="6" fill="#28c840"/>
+  <text x="370" y="22" text-anchor="middle" class="title">Claude Code — /dream:setup</text>
+  <text x="24" y="66"><tspan class="prompt">&gt;</tspan> <tspan class="em">/dream:setup</tspan></text>
+  <text x="24" y="96"><tspan class="ok">✓</tspan> Project opted in — <tspan class="em">.dream/config.json</tspan> written, memory store git-initialized</text>
+  <text x="24" y="120"><tspan class="ok">✓</tspan> Steering set — SDK gotchas, review workflow, naming preferences</text>
+  <text x="24" y="144"><tspan class="ok">✓</tspan> Ambient dreaming ON — auto-runs at ≥3 backlogged sessions, $5 cap per run</text>
+  <text x="24" y="168"><tspan class="ok">✓</tspan> Status line chained — buddy's line + dream's 💤/🌙 badge</text>
+</svg>

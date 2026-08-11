@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="740" height="312" viewBox="0 0 740 312" role="img" aria-label="Terminal showing scripts/install.sh output: dream CLI built, linked onto PATH, and Claude Code plugin installed">
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; fill: #e6edf3; white-space: pre; }
+    .title { font-size: 12px; fill: #8b949e; }
+    .tag { fill: #d2a8ff; }
+    .dim { fill: #8b949e; }
+    .ok { fill: #3fb950; }
+    .path { fill: #79c0ff; }
+    .cmd { fill: #ffa657; }
+    .prompt { fill: #3fb950; }
+  </style>
+  <rect x="0.5" y="0.5" width="739" height="311" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <path d="M0.5 10.5 a10 10 0 0 1 10-10 h719 a10 10 0 0 1 10 10 v25.5 h-739 z" fill="#161b22"/>
+  <line x1="0.5" y1="36" x2="739.5" y2="36" stroke="#30363d"/>
+  <circle cx="22" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="42" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="62" cy="18" r="6" fill="#28c840"/>
+  <text x="370" y="22" text-anchor="middle" class="title">install.sh — dream</text>
+  <text x="24" y="66"><tspan class="prompt">$</tspan> ./scripts/install.sh</text>
+  <text x="24" y="92"><tspan class="tag">[dream]</tspan> installing dependencies…</text>
+  <text x="24" y="114"><tspan class="tag">[dream]</tspan> building…</text>
+  <text x="24" y="136"><tspan class="tag">[dream]</tspan> linking the dream CLI onto your PATH…</text>
+  <text x="24" y="158"><tspan class="tag">[dream]</tspan> CLI ready: <tspan class="path">/opt/homebrew/bin/dream</tspan></text>
+  <text x="24" y="180"><tspan class="tag">[dream]</tspan> registering the fiorastudio marketplace with Claude Code…</text>
+  <text x="24" y="202"><tspan class="tag">[dream]</tspan> installing the plugin…</text>
+  <text x="24" y="224"><tspan class="tag">[dream]</tspan> <tspan class="ok">plugin installed.</tspan></text>
+  <text x="24" y="254">dream is installed. Next, in any project you want dreamed:</text>
+  <text x="24" y="276">  1. open Claude Code there and run <tspan class="cmd">/dream:setup</tspan></text>
+</svg>

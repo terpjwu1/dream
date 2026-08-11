@@ -1,0 +1,22 @@
+{
+  "name": "fiorastudio",
+  "owner": {
+    "name": "Steven Jieli Wu",
+    "url": "https://stevenjieliwu.com/"
+  },
+  "metadata": {
+    "description": "fiorastudio plugins — dream: background memory curation for coding agents",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "dream",
+      "description": "Memory curation for coding agents — while you sleep, dream reads session transcripts in the background and proposes evidence-backed memory updates you review.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Steven Jieli Wu"
+      },
+      "source": "./plugin"
+    }
+  ]
+}
