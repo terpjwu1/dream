@@ -31,6 +31,6 @@
   },
   "trigger": {
     "enabled": true,
-    "minSessions": 3
+    "minSessions": 2
   }
 }

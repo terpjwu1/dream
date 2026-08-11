@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { acquireRunLock, loadState, saveState, StateSchema } from "../src/state.js";
 import { commitWatermark } from "../src/pipeline/run.js";
+import { ConfigSchema } from "../src/config.js";
 import { FileMemoryStore } from "../src/memory/memoryStore.js";
 import { extractJson } from "../src/agents/runner.js";
 import { stateFile } from "../src/paths.js";
@@ -43,14 +44,14 @@ describe("commitWatermark", () => {
       partial: false,
       dryRun: false,
     } as unknown as RunReport;
-    commitWatermark(proj, report);
+    commitWatermark(proj, report, ConfigSchema.parse({}));
     const state = loadState(proj);
     expect(Object.keys(state.dreamedSessions).sort()).toEqual(["mine", "other"]);
   });
 
   it("never advances on dry runs", () => {
     const before = loadState(proj);
-    commitWatermark(proj, { dryRun: true, sessionsAnalyzed: ["dry"] } as unknown as RunReport);
+    commitWatermark(proj, { dryRun: true, sessionsAnalyzed: ["dry"] } as unknown as RunReport, ConfigSchema.parse({}));
     expect(loadState(proj)).toEqual(before);
   });
 });

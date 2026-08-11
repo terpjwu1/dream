@@ -39,20 +39,48 @@ Output ONLY a \`\`\`json fence containing an array of findings with this exact s
 }]`;
 }
 
-export const AGGREGATOR_SYSTEM = `You merge duplicate findings from parallel transcript analysts in an offline memory-curation job. Findings describe cross-session patterns in coding-agent transcripts.`;
+export const AGGREGATOR_SYSTEM = `You merge duplicate findings from parallel transcript analysts in an offline memory-curation job. Findings describe cross-session patterns in coding-agent transcripts. You may also link current findings to previously observed, unproven patterns ("candidates") from earlier runs.`;
 
-export function aggregatorPrompt(findings: Finding[]): string {
+export function aggregatorPrompt(findings: Finding[], candidates: CandidateLike[] = []): string {
+  const candidateDoc =
+    candidates.length === 0
+      ? ""
+      : `
+
+Previously observed, UNPROVEN patterns from earlier runs (candidates). If a
+current finding describes the SAME underlying pattern as one of these, set
+"matchedPatternKey" to that candidate's patternKey on the merged finding.
+Rules: match only genuinely identical patterns (when unsure, do not match);
+NEVER copy, edit, or restate a candidate's sessionIds or quotes — the harness
+owns that evidence; a candidate alone is never a finding (only current
+findings appear in your output).
+
+<candidates>
+${JSON.stringify(
+  candidates.map((c) => ({ patternKey: c.patternKey, category: c.category, summary: c.summary, detail: c.detail })),
+  null,
+  2,
+)}
+</candidates>`;
+
   return `Below are findings from independent analysts who each saw a different batch of sessions. Merge findings that describe the SAME underlying pattern:
 - Union their sessionIds and quotes (deduplicate).
 - Keep the clearest summary/detail; prefer specificity.
 - Never invent session ids or quotes that are not present in the inputs.
-- Keep distinct patterns separate — do not over-merge.
+- Keep distinct patterns separate — do not over-merge.${candidateDoc}
 
 <findings>
 ${JSON.stringify(findings, null, 2)}
 </findings>
 
-Output ONLY a \`\`\`json fence containing the merged array of findings (same shape as the input).`;
+Output ONLY a \`\`\`json fence containing the merged array of findings (input shape, plus optional "matchedPatternKey" per the candidate rules).`;
+}
+
+interface CandidateLike {
+  patternKey: string;
+  category: string;
+  summary: string;
+  detail: string;
 }
 
 export const PROPOSER_SYSTEM = `You curate a memory store for a coding agent — a directory of markdown files, each one memory, with YAML frontmatter. You receive verified cross-session findings and decide what the memory store should look like so future sessions go better. You may Read/Grep/Glob the store in your working directory. You never write files yourself; you output proposals for a harness to validate and apply.`;

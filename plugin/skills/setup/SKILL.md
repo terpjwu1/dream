@@ -29,7 +29,7 @@ allowed-tools:
 4. **Ambient dreaming consent (explicit, off by default):** background
    runs spend real money, so `trigger.enabled` starts `false`. Tell the
    user the terms before flipping it: a run starts automatically at
-   session start once ≥ `trigger.minSessions` (default 3) sessions are
+   session start once ≥ `trigger.minSessions` (default 2) sessions are
    un-dreamed, and each run is capped at `budget.maxRunCostUsd` (default
    $5). Only if they agree, set `"trigger": { "enabled": true }` in
    `.dream/config.json`. If they decline, dreaming stays manual via

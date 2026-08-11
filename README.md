@@ -208,6 +208,12 @@ changed file, for easy revert.
   any finding seen in fewer than 2 sessions (configurable), and every cited
   session id is validated against the sessions actually analyzed;
   hallucinated citations are dropped before counting.
+- **Suspicions carry over, evidence never evaporates** — a pattern seen only
+  once isn't forgotten: it's held as a *candidate* in dream's state and
+  promoted the next time it's seen (the proof bar stays at 2 distinct
+  sessions — evidence just accumulates across runs). Candidates that never
+  recur expire quietly; a candidate can only promote with fresh evidence
+  from the current run, never by aging.
 - **Dry-run is really dry** — `--dry-run` runs the full pipeline but writes
   nothing and advances no watermark.
 - **Honest watermark** — the watermark only advances for sessions whose
@@ -240,7 +246,7 @@ the flow pictured in the [walkthrough above](#onboarding-two-minutes).
 attention to, and — **only with your explicit consent, off by default** —
 enables ambient triggering. Beyond those three commands:
 
-- **SessionStart hook** — when ≥3 sessions are un-dreamed, a background run
+- **SessionStart hook** — when ≥2 sessions are un-dreamed, a background run
   starts as you begin working; its one-line notice lands in your session.
 - **Status line** — optional `dream statusline` wiring shows `💤 dreaming…`
   during runs and `🌙 N proposal(s) · /dream:review` when results land.

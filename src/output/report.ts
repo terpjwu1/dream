@@ -44,5 +44,13 @@ export function printReport(report: RunReport): void {
   } else {
     console.log("\nno proposals this run");
   }
+
+  const upserts = report.ledgerDelta?.upserts ?? [];
+  if (upserts.length > 0) {
+    console.log(`\nheld as candidates (evidence accumulates across runs): ${upserts.length}`);
+    for (const u of upserts) {
+      console.log(`  ~ [${u.category}] ${u.summary.slice(0, 80)}`);
+    }
+  }
   console.log(line);
 }

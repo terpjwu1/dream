@@ -239,3 +239,25 @@ node dist/cli.js run --project /Users/jwu/Documents/buddyReborn/buddy --dry-run 
 # or replay the accepted E2E history:
 git -C ~/.claude/projects/-private-tmp-claude-501--Users-jwu-Documents-dream-df01243d-1957-4af5-9f0f-04eddcbb49fc-scratchpad-e2e-proj/memory log --stat
 ```
+
+## Evidence 6 — Cross-run candidate ledger (session continuity, issue #2)
+
+Live four-run sequence on the e2e fixture (`--max-sessions 1` to force
+single-session runs — the worst case for the old design):
+
+- Run 1 (session 33333333): stale-memory finding promoted at floor 1 — the
+  ledger correctly held nothing (analyzer emitted a single finding).
+- Run 3 (session 11111111): recurring pattern seen ONCE → `filtered … need 2`
+  **and** `held as candidates` — the observation survived in state
+  (`candidates left: 1`) instead of evaporating.
+- Run 4 (session 44444444, a later fixture session with the same failure):
+  `candidate 4d7c30c74372 matched by a current finding` →
+  `seen in 2/2 sessions (11111111, 44444444)` → proposal citing sessions
+  from TWO DIFFERENT RUNS, session 11111111's quote carried verbatim from
+  the ledger; `candidates left: 0` (promoted candidate deleted).
+
+Guardrails covered by unit tests (suite 104/104): append-only stored
+evidence, fresh-evidence promotion rule, union-cardinality denominator,
+hallucinated-candidate expiry via missedRuns (zero-analyzed runs never age),
+TTL + per-category pruning, secret redaction of persisted candidates,
+analyzer schema cannot smuggle matchedPatternKey.

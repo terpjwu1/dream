@@ -126,7 +126,7 @@ describe("trigger config safety defaults", () => {
     expect(config.trigger.enabled).toBe(false);
     expect(config.trigger.global).toBe(false);
     expect(config.trigger.excludeProjects).toEqual([]);
-    expect(config.trigger.minSessions).toBe(3);
+    expect(config.trigger.minSessions).toBe(2);
   });
 });
 

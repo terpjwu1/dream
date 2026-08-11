@@ -40,13 +40,20 @@ export const ConfigSchema = z.object({
     })
     .prefault({}),
   memory: z.object({ dir: z.string().nullable().default(null) }).prefault({}),
+  // Candidate-ledger pruning (see docs: suspicions accumulate across runs).
+  ledger: z
+    .object({
+      maxPerCategory: z.number().int().positive().default(20),
+      maxMissedRuns: z.number().int().positive().default(5),
+    })
+    .prefault({}),
   // enabled defaults FALSE: initializing a project for CLI use is not consent
   // for ambient background spend (Codex plan-review finding). /dream:setup or
   // the user flips it explicitly.
   trigger: z
     .object({
       enabled: z.boolean().default(false),
-      minSessions: z.number().int().positive().default(3),
+      minSessions: z.number().int().positive().default(2),
       /** Profile-wide ambient dreaming (set via `dream init --global`): every
        *  project is dreamable without per-project init. Same consent bar —
        *  one explicit global opt-in instead of N project opt-ins. */
