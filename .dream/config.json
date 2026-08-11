@@ -1,0 +1,36 @@
+{
+  "steering": "What matters here: TypeScript/zod/Claude-Agent-SDK gotchas discovered the hard way (e.g. API semantics that differ from assumptions); testing and Codex-review workflow conventions (plan review -> build -> code review -> fix verification); naming and branding preferences (fiorastudio marketplace, plain language over jargon like 'out-of-band', real name Steven Jieli Wu); repeated user corrections. Ignore one-off typos and secrets. CRITICAL: this project develops dream itself, so transcripts are full of QUOTED test fixtures and E2E outputs (postgres/ECONNREFUSED/make db-up/db-setup.md are synthetic test data; e2e-proj is a fixture). Never treat failure content that is merely quoted, discussed, or emitted by tests as this project's own lived experience \u2014 only patterns from the actual development work count.",
+  "reviewMode": "branch",
+  "runtime": {
+    "provider": "claude-agent-sdk",
+    "model": "claude-fable-5"
+  },
+  "analyzerRuntime": {
+    "provider": "claude-agent-sdk",
+    "model": "claude-fable-5"
+  },
+  "prevalence": {
+    "minSessions": 2,
+    "minFraction": 0
+  },
+  "transcripts": {
+    "source": "claude-code",
+    "sinceDays": 14,
+    "maxSessionsPerRun": 20,
+    "includeSubagents": false
+  },
+  "budget": {
+    "batchSizeSessions": 5,
+    "maxDigestTokensPerBatch": 40000,
+    "maxConcurrentAnalyzers": 3,
+    "maxStepsPerAgent": 25,
+    "maxRunCostUsd": 5
+  },
+  "memory": {
+    "dir": null
+  },
+  "trigger": {
+    "enabled": true,
+    "minSessions": 3
+  }
+}
