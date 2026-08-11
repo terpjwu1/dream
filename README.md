@@ -217,7 +217,7 @@ changed file, for easy revert.
 - **Hard budget cap** — cost is metered per run; new agent launches stop once
   the cap is crossed.
 
-64/64 tests cover exactly these properties (real JSONL edge cases, torn live
+93/93 tests cover exactly these properties (real JSONL edge cases, torn live
 sessions, path traversal + symlink escapes, hallucinated-id rejection,
 deep redaction across 7 credential formats, budget aborts, dirty-tree
 refusal, mid-commit rollback, SDK sandbox-option conformance).
@@ -247,6 +247,36 @@ enables ambient triggering. Beyond those three commands:
 
 Accepted memories land in the project's `memory/MEMORY.md`, which Claude Code
 auto-loads at session start — the agent literally wakes up smarter.
+
+## Fidelity to the talk
+
+Source: **Lamis Mukta (Anthropic), [*Learning while you sleep: Beyond memory
+to dreaming*](https://www.youtube.com/watch?v=tTcxVv8HHNw), AI Native DevCon,
+June 2026** — timestamps below reference the video; full notes in
+[NOTES.md](NOTES.md).
+
+| Talk (timestamp) | dream | Status |
+|---|---|---|
+| Batch process over memory with its own resources (18:12) | Detached background run with its own budget cap | ✅ |
+| Memory store = markdown files + normal file tools (07:39) | `memory/*.md` + `MEMORY.md` index — Claude Code's exact convention | ✅ |
+| Transcripts incl. tool calls/metadata as the input (21:04) | Digester preserves tool errors and user interruptions as prime signal | ✅ |
+| Orchestrator + subagent fan-out (22:19) | Analyzer batches → aggregator → proposer | ✅ |
+| "Prevalent enough" threshold (23:03) | Stricter: deterministic arithmetic + hallucinated-citation rejection | ✅ |
+| Evidence-backed proposals — transcripts + stats (23:16) | Commit bodies with verbatim quotes and N/M prevalence | ✅ |
+| Human accept/reject (23:37) | Branch review gate — caught a plausible-but-false memory on its first real use | ✅ |
+| Steering the dreamer (22:28) | `steering` config, injected into every analysis and proposal prompt | ✅ |
+| Stale-memory detection (18:00) | `stale_memory` category with single-contradiction bypass | ✅ |
+| "Deterministic infra in the harness, judgment in the agent" (30:16) | The organizing principle of the codebase | ✅ |
+| Versioning + attribution (10:42) | Git history + `curatedBy`/`evidenceSessions` frontmatter | ✅ |
+| Content-hash CAS writes (11:17) | Run lock only — per-write CAS is roadmap | 🔜 |
+| Permission scopes: org read-only vs. scratchpad (12:11) | Flat per-project stores | 🔜 |
+| Fleet/org-wide visibility (17:14) | One project per dream; no cross-project aggregation yet | 🔜 |
+
+Beyond the talk, dream adds the delivery layer it never covered (ambient
+hooks, `/dream`, the status-line badge, one-command install), demonstrated
+**convergence** (re-dreaming after an accepted fix yields 0 findings — no
+memory spam), and the cross-vendor portability seams. What's missing is
+exactly the enterprise-scale half; nothing missing is concept.
 
 ## Beyond Claude Code
 
