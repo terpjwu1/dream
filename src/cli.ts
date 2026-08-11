@@ -18,9 +18,31 @@ program
   .command("status")
   .description("Show watermark, un-dreamed sessions, pending review branches, last run")
   .option(...projectOption)
-  .action(async (opts: { project?: string }) => {
+  .option("--json", "machine-readable output")
+  .action(async (opts: { project?: string; json?: boolean }) => {
     const { statusCommand } = await import("./commands/status.js");
-    await statusCommand(resolve(opts.project ?? process.cwd()));
+    await statusCommand(resolve(opts.project ?? process.cwd()), { json: opts.json });
+  });
+
+program
+  .command("trigger")
+  .description("SessionStart hook entrypoint: dream in the background when backlog warrants")
+  .option(...projectOption)
+  .option("--stdin", "read the hook JSON payload from stdin to locate the project")
+  .action(async (opts: { project?: string; stdin?: boolean }) => {
+    const { triggerCommand, readStdinProject } = await import("./commands/trigger.js");
+    const fromStdin = opts.stdin ? await readStdinProject() : undefined;
+    const project = opts.project ?? fromStdin;
+    if (!project) return; // unparseable hook payload — stay silent
+    await triggerCommand(resolve(project));
+  });
+
+program
+  .command("statusline")
+  .description("Status line renderer: reads Claude Code statusline JSON on stdin, prints the badge")
+  .action(async () => {
+    const { statuslineCommand } = await import("./commands/statusline.js");
+    await statuslineCommand();
   });
 
 program

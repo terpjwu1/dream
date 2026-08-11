@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { clearBadge, writeBadge } from "../badge.js";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { currentBranch, git, isGitRepo, listDreamBranches } from "../git.js";
@@ -72,7 +73,13 @@ export async function reviewCommand(
   }
 
   const remaining = (await listDreamBranches(memoryDir)).length;
-  if ((opts.accept || opts.reject) && remaining > 0) {
-    console.log(`${remaining} more pending branch(es) — run dream review again`);
+  if (opts.accept || opts.reject) {
+    if (remaining > 0) {
+      // Branch count, not proposal count — proposals-per-branch varies.
+      writeBadge(projectPath, `🌙 ${remaining} proposal branch(es) · /dream:review`);
+      console.log(`${remaining} more pending branch(es) — run dream review again`);
+    } else {
+      clearBadge(projectPath);
+    }
   }
 }

@@ -9,6 +9,7 @@ import { defaultMemoryDir, runsDir } from "../paths.js";
 import { ClaudeCodeSource } from "../sources/claudeCode.js";
 import { loadState, markDreamed, saveState } from "../state.js";
 import type { RunReport } from "../types.js";
+import { writeBadge } from "../badge.js";
 import { aggregateFindings, applyPrevalence } from "./aggregate.js";
 import { analyzeBatches, packBatches, stageBatch } from "./analyze.js";
 import { RunBudget } from "./budget.js";
@@ -51,6 +52,10 @@ export async function runPipeline(
     return emptyReport(runId, projectPath, opts.dryRun === true);
   }
 
+  const badge = (text: string) => {
+    if (!opts.dryRun) writeBadge(projectPath, text);
+  };
+  badge(`💤 dreaming — digesting ${selected.length} session(s)…`);
   const source = new ClaudeCodeSource();
   const perSessionBudget = Math.floor(
     config.budget.maxDigestTokensPerBatch / Math.min(selected.length, config.budget.batchSizeSessions),
@@ -73,6 +78,7 @@ export async function runPipeline(
     stageBatch(runDir, i, batch, memorySnapshot, config.steering),
   );
   log(`analyzing ${batches.length} batch(es)…`);
+  badge(`💤 dreaming — analyzing ${batches.length} batch(es)…`);
   const analysis = await analyzeBatches(batches, runner, config, budget);
   for (const err of analysis.failedBatchErrors) log(`  ⚠ analyzer failed: ${err}`);
   log(
@@ -87,6 +93,7 @@ export async function runPipeline(
   log(`prevalence: ${surviving.length}/${merged.length} finding(s) survive`);
 
   // 4. Propose
+  badge(`💤 dreaming — drafting memory proposals…`);
   const { proposals, invalid } = await generateProposals(
     surviving,
     store,

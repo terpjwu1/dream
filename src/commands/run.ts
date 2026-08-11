@@ -1,3 +1,4 @@
+import { clearBadge, writeBadge } from "../badge.js";
 import { ClaudeAgentRunner } from "../agents/claudeRunner.js";
 import { loadConfig } from "../config.js";
 import { runsDir } from "../paths.js";
@@ -41,12 +42,19 @@ export async function runCommand(
       if (config.reviewMode === "branch") {
         const { applyBranchMode } = await import("../output/branchMode.js");
         await applyBranchMode(projectPath, config, report);
+        writeBadge(projectPath, `🌙 ${report.proposals.length} proposal(s) · /dream:review`);
       } else {
         const { applyAutoMode } = await import("../output/autoMode.js");
         await applyAutoMode(projectPath, config, report);
+        writeBadge(projectPath, `🌙 ${report.proposals.length} memory update(s) auto-applied`);
       }
+    } else {
+      clearBadge(projectPath);
     }
     commitWatermark(projectPath, report);
+  } catch (err) {
+    if (!dryRun) writeBadge(projectPath, `⚠ dream run failed · see ~/.dream/runs/`);
+    throw err;
   } finally {
     releaseLock();
   }

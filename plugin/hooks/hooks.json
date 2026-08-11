@@ -1,0 +1,17 @@
+{
+  "description": "dream plugin — ambient background dreaming over session transcripts",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/trigger.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

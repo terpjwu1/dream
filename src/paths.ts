@@ -29,3 +29,7 @@ export function stateFile(projectPath: string): string {
 export function runsDir(runId: string): string {
   return join(dreamHome(), "runs", runId);
 }
+
+export function badgeFile(projectPath: string): string {
+  return join(dreamHome(), "state", `${mungeProjectPath(projectPath)}.statusline`);
+}

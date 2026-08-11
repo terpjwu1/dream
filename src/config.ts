@@ -43,6 +43,15 @@ export const ConfigSchema = z.object({
     })
     .prefault({}),
   memory: z.object({ dir: z.string().nullable().default(null) }).prefault({}),
+  // enabled defaults FALSE: initializing a project for CLI use is not consent
+  // for ambient background spend (Codex plan-review finding). /dream:setup or
+  // the user flips it explicitly.
+  trigger: z
+    .object({
+      enabled: z.boolean().default(false),
+      minSessions: z.number().int().positive().default(3),
+    })
+    .prefault({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

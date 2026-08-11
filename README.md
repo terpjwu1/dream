@@ -9,7 +9,16 @@ evidence-backed edits to its memory store as git commits you review. Accept
 the good ones; next session, the agent wakes up smarter.
 
 It's an implementation of "dreaming" from Lamis Mukta's AI Native DevCon 2026
-talk, [*Learning while you sleep: Beyond memory to dreaming*](https://www.youtube.com/watch?v=tTcxVv8HHNw).
+talk, [*Learning while you sleep: Beyond memory to dreaming*](https://www.youtube.com/watch?v=tTcxVv8HHNw) —
+and an homage to Claude Code's own short-lived **auto-dream** feature (seen in
+builds before 2.1.84, gone by 2.1.97). This project keeps that idea alive as
+an open tool.
+
+*"Out-of-band"* means the curation happens **outside the live session** — in a
+separate batch process with its own budget, not while the agent is busy doing
+your work. In-band memory (the agent jotting notes mid-task) splits its focus
+and only sees one session; out-of-band dreaming sees weeks of sessions at once
+and spends dedicated tokens on nothing but learning.
 
 ```console
 $ dream run --project ~/code/myapp
@@ -169,6 +178,32 @@ sessions, path traversal + symlink escapes, hallucinated-id rejection,
 deep redaction across 7 credential formats, budget aborts, dirty-tree
 refusal, mid-commit rollback, SDK sandbox-option conformance).
 
+## Use inside Claude Code (plugin)
+
+The `plugin/` directory ships a Claude Code plugin (also conforming to the
+[Agent Plugins](https://agent-plugins.org/) portable standard) that makes
+dreaming ambient:
+
+```
+/plugin marketplace add terpjwu1/dream
+/plugin install dream@dream
+```
+
+Then in any project: `/dream:setup` (installs nothing twice; runs `dream init`,
+asks what to pay attention to, and — **only with your explicit consent, off by
+default** — enables ambient triggering). After that:
+
+- **SessionStart hook** — when ≥3 sessions are un-dreamed, a background run
+  starts as you begin working; its one-line notice lands in your session.
+- **Status line** — optional `dream statusline` wiring shows `💤 dreaming…`
+  during runs and `🌙 N proposal(s) · /dream:review` when results land.
+- **`/dream:review`** — review proposals conversationally, evidence and all,
+  without leaving your session. `/dream:run` and `/dream:status` for manual
+  control.
+
+Accepted memories land in the project's `memory/MEMORY.md`, which Claude Code
+auto-loads at session start — the agent literally wakes up smarter.
+
 ## Beyond Claude Code
 
 v1 reads **Claude Code** transcripts and runs its agents on the **Claude
@@ -196,6 +231,9 @@ pasted command output in [PROOF.md](PROOF.md) — but expect rough edges.
 - Concept: Lamis Mukta (Anthropic), [*Learning while you sleep: Beyond memory
   to dreaming*](https://www.youtube.com/watch?v=tTcxVv8HHNw), AI Native DevCon
   2026. Detailed talk notes in [NOTES.md](NOTES.md).
+- Prior art: Claude Code's original **auto-dream** feature — present in
+  builds before 2.1.84, removed by 2.1.97. Gone but not forgotten; `dream`
+  is its open-source afterlife.
 - Created by [Steven Jieli Wu](https://stevenjieliwu.com/) — generative AI
   architect and educator; also the maker of Buddy, the AI coding companion.
 - Built with Claude Code; design and implementation reviewed by Codex (all

@@ -1,0 +1,13 @@
+{
+  "name": "dream",
+  "version": "0.1.0",
+  "description": "Out-of-band memory curation for coding agents — dreams over session transcripts in the background and proposes evidence-backed memory updates you review.",
+  "author": {
+    "name": "Steven Jieli Wu",
+    "url": "https://stevenjieliwu.com/"
+  },
+  "homepage": "https://github.com/terpjwu1/dream",
+  "repository": "https://github.com/terpjwu1/dream",
+  "license": "MIT",
+  "keywords": ["memory", "dreaming", "context-engineering", "claude-code", "agents", "transcripts"]
+}

@@ -21,6 +21,10 @@ export async function initCommand(
     writeFileSync(paths.project, JSON.stringify(defaults, null, 2) + "\n");
     console.log(`wrote ${paths.project}`);
     console.log(`  → edit "steering" to tell dream what matters in this project`);
+    console.log(
+      `  → ambient dreaming is OFF by default; set "trigger": {"enabled": true} to let ` +
+        `session starts dream in the background (costs capped by budget.maxRunCostUsd)`,
+    );
   }
 
   // 2. Ensure the memory store exists.
