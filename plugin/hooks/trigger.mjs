@@ -5,8 +5,19 @@
 // a hook must never break a session, and must barely delay one: the actual
 // dreaming always runs in a detached child, never on the session path.
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
+
+/** Profile-wide opt-in (`dream init --global`) makes every project dreamable. */
+function globalDreamEnabled() {
+  try {
+    const config = JSON.parse(readFileSync(join(homedir(), ".dream", "config.json"), "utf8"));
+    return config?.trigger?.global === true;
+  } catch {
+    return false;
+  }
+}
 
 if (process.env.DREAM_BACKGROUND === "1") process.exit(0);
 
@@ -23,7 +34,12 @@ process.stdin.on("end", () => {
     // Same fallback chain as the CLI's hookPayloadProject — keep in sync.
     const candidate = payload?.cwd ?? payload?.workspace?.current_dir;
     const cwd = typeof candidate === "string" && candidate.trim() ? candidate : undefined;
-    if (!cwd || !existsSync(join(cwd, ".dream", "config.json"))) process.exit(0);
+    if (!cwd) process.exit(0);
+    // Dreamable via per-project init OR the profile-wide opt-in (exclusions
+    // are evaluated by the CLI — the hook only decides whether to spawn it).
+    if (!existsSync(join(cwd, ".dream", "config.json")) && !globalDreamEnabled()) {
+      process.exit(0);
+    }
   } catch {
     process.exit(0); // unparseable payload — nothing sensible to trigger
   }

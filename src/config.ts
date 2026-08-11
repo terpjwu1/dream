@@ -50,6 +50,12 @@ export const ConfigSchema = z.object({
     .object({
       enabled: z.boolean().default(false),
       minSessions: z.number().int().positive().default(3),
+      /** Profile-wide ambient dreaming (set via `dream init --global`): every
+       *  project is dreamable without per-project init. Same consent bar —
+       *  one explicit global opt-in instead of N project opt-ins. */
+      global: z.boolean().default(false),
+      /** Substring matches against project paths to exempt from global mode. */
+      excludeProjects: z.array(z.string()).default([]),
     })
     .prefault({}),
 });

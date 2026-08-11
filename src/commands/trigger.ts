@@ -67,16 +67,28 @@ export function decideTrigger(
     : { action: "none" };
 }
 
+/** Global-mode opt-in check: enabled profile-wide and not excluded. */
+export function globallyDreamable(projectPath: string, config: Config): boolean {
+  return (
+    config.trigger.global &&
+    !config.trigger.excludeProjects.some((pattern) => projectPath.includes(pattern))
+  );
+}
+
 export async function gatherTriggerInput(
   projectPath: string,
   config: Config,
   opts: { full?: boolean } = {},
 ): Promise<Parameters<typeof decideTrigger>[0]> {
-  const initialized = existsSync(configPaths(projectPath).project);
+  // A project is dreamable via its own init OR the profile-wide opt-in.
+  const initialized =
+    existsSync(configPaths(projectPath).project) || globallyDreamable(projectPath, config);
   // Ambient path short-circuits when disabled (hooks must be cheap); --now
-  // needs the real counts even when ambient dreaming is off.
-  if (!initialized || (!config.trigger.enabled && !opts.full)) {
-    return { initialized, enabled: config.trigger.enabled, minSessions: 0, undreamed: 0, pendingBranches: 0, lockHeld: false };
+  // needs the real counts even when ambient dreaming is off. Global mode
+  // implies ambient consent (that's what --global grants).
+  const enabled = config.trigger.enabled || globallyDreamable(projectPath, config);
+  if (!initialized || (!enabled && !opts.full)) {
+    return { initialized, enabled, minSessions: 0, undreamed: 0, pendingBranches: 0, lockHeld: false };
   }
   const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
   const pendingBranches = (await isGitRepo(memoryDir))
@@ -85,7 +97,7 @@ export async function gatherTriggerInput(
   const { selected } = await selectSessions(projectPath, config, loadState(projectPath));
   return {
     initialized,
-    enabled: config.trigger.enabled,
+    enabled,
     minSessions: config.trigger.minSessions,
     undreamed: selected.length,
     pendingBranches,

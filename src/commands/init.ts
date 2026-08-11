@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { ConfigSchema, configPaths } from "../config.js";
 import { currentBranch, git, isGitRepo } from "../git.js";
 import { FileMemoryStore } from "../memory/memoryStore.js";
@@ -7,10 +7,38 @@ import { defaultMemoryDir } from "../paths.js";
 
 export async function initCommand(
   projectPath: string,
-  opts: { mode?: string },
+  opts: { mode?: string; global?: boolean },
 ): Promise<void> {
   const mode = opts.mode === "auto" ? "auto" : "branch";
   const paths = configPaths(projectPath);
+
+  if (opts.global) {
+    const globalPath = paths.global;
+    mkdirSync(dirname(globalPath), { recursive: true });
+    const existing = existsSync(globalPath)
+      ? JSON.parse(readFileSync(globalPath, "utf8"))
+      : {};
+    const merged = {
+      ...existing,
+      trigger: {
+        ...(existing.trigger ?? {}),
+        enabled: true,
+        global: true,
+        excludeProjects: existing.trigger?.excludeProjects ?? [],
+      },
+    };
+    writeFileSync(globalPath, JSON.stringify(merged, null, 2) + "\n");
+    console.log(`wrote ${globalPath}`);
+    console.log(
+      "GLOBAL ambient dreaming enabled: EVERY project you open in Claude Code becomes\n" +
+        "dreamable once ≥3 sessions are un-dreamed — each run capped at budget.maxRunCostUsd\n" +
+        `(default $5), but N projects can each spend that. Carve-outs: add path substrings\n` +
+        `to trigger.excludeProjects in ${globalPath}.\n` +
+        "Per-project .dream/config.json still overrides everything, and memory stores are\n" +
+        "auto-created on a project's first dream. Disable any time: set trigger.global to false.",
+    );
+    return;
+  }
 
   // 1. Scaffold project config (full defaults so every knob is discoverable).
   if (existsSync(paths.project)) {

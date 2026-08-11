@@ -18,11 +18,14 @@ export async function applyBranchMode(
   const memoryDir = config.memory.dir ?? defaultMemoryDir(projectPath);
   const store = new FileMemoryStore(memoryDir);
 
-  // Preflight — fail closed before touching anything.
+  // Preflight — fail closed before touching anything. A missing repo is
+  // auto-provisioned (globally-dreamed projects never ran `dream init`);
+  // this only ever touches dream's own store dir, never user code.
   if (!(await isGitRepo(memoryDir))) {
-    throw new Error(
-      `memory dir ${memoryDir} is not a git repository — run \`dream init --mode branch\` first`,
-    );
+    await store.regenerateIndex(); // creates the dir + MEMORY.md if absent
+    await git(memoryDir, "init", "-b", "main");
+    await git(memoryDir, "add", "-A");
+    await git(memoryDir, "commit", "-m", "dream: memory store baseline (auto-provisioned)");
   }
   if (!(await isClean(memoryDir))) {
     throw new Error(`memory repo has uncommitted changes — commit or stash them first`);

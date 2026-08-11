@@ -123,6 +123,14 @@ dream review --project /path/to/project        # inspect; --accept / --reject
 dream status --project /path/to/project        # watermark, pending branches, last run
 ```
 
+Prefer dreaming everywhere instead of per-project setup? One profile-wide
+opt-in covers every project you open (memory stores auto-provision on first
+dream; carve out exceptions via `trigger.excludeProjects`):
+
+```bash
+dream init --global
+```
+
 The one config knob worth setting immediately: `steering` in
 `.dream/config.json` — a plain-English description of what matters in your
 project, injected into every analysis and proposal prompt. Other knobs:

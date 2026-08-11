@@ -76,7 +76,8 @@ program
   .description("Scaffold .dream/config.json and the memory store for this project")
   .option(...projectOption)
   .option("--mode <mode>", "review mode: branch | auto", "branch")
-  .action(async (opts: { project?: string; mode?: string }) => {
+  .option("--global", "enable ambient dreaming for ALL projects (profile-wide opt-in)")
+  .action(async (opts: { project?: string; mode?: string; global?: boolean }) => {
     const { initCommand } = await import("./commands/init.js");
     await initCommand(resolve(opts.project ?? process.cwd()), opts);
   });

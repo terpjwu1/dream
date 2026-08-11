@@ -106,10 +106,15 @@ describe("applyBranchMode", () => {
     await expect(applyBranchMode("/f", config, report([proposal()]))).rejects.toThrow(/detached/);
   });
 
-  it("refuses a non-repo", async () => {
+  it("auto-provisions a memory repo for never-inited (globally-dreamed) projects", async () => {
     const plain = mkdtempSync(join(tmp, "plain-"));
     const cfg = ConfigSchema.parse({ memory: { dir: plain } });
-    await expect(applyBranchMode("/f", cfg, report([proposal()]))).rejects.toThrow(/dream init/);
+    await applyBranchMode("/f", cfg, report([proposal()]));
+    expect(sh(plain, "symbolic-ref", "--short", "HEAD")).toBe("main");
+    const log = sh(plain, "log", "--all", "--format=%s");
+    expect(log).toContain("dream: memory store baseline (auto-provisioned)");
+    expect(log).toContain("dream(create): deploy-env");
+    expect(sh(plain, "branch", "--list", "dream/*")).toContain("dream/2026-08-09-abc123");
   });
 });
 

@@ -120,11 +120,30 @@ describe("badge lifecycle", () => {
 });
 
 describe("trigger config safety defaults", () => {
-  it("ambient dreaming is opt-in: trigger.enabled defaults to false", async () => {
+  it("ambient dreaming is opt-in: trigger.enabled and trigger.global default to false", async () => {
     const { ConfigSchema } = await import("../src/config.js");
     const config = ConfigSchema.parse({});
     expect(config.trigger.enabled).toBe(false);
+    expect(config.trigger.global).toBe(false);
+    expect(config.trigger.excludeProjects).toEqual([]);
     expect(config.trigger.minSessions).toBe(3);
+  });
+});
+
+describe("globallyDreamable", () => {
+  it("honors the profile-wide opt-in and its exclusions", async () => {
+    const { globallyDreamable } = await import("../src/commands/trigger.js");
+    const { ConfigSchema } = await import("../src/config.js");
+    const off = ConfigSchema.parse({});
+    const on = ConfigSchema.parse({ trigger: { global: true } });
+    const carved = ConfigSchema.parse({
+      trigger: { global: true, excludeProjects: ["/scratch/", "clients/acme"] },
+    });
+    expect(globallyDreamable("/Users/x/proj", off)).toBe(false);
+    expect(globallyDreamable("/Users/x/proj", on)).toBe(true);
+    expect(globallyDreamable("/Users/x/scratch/tmp", carved)).toBe(false);
+    expect(globallyDreamable("/Users/x/clients/acme/app", carved)).toBe(false);
+    expect(globallyDreamable("/Users/x/proj", carved)).toBe(true);
   });
 });
 
@@ -204,6 +223,7 @@ describe("plugin scaffold validity (schema-drift canary)", () => {
     const script = readFileSync(join(ROOT, "plugin/hooks/trigger.mjs"), "utf8");
     expect(script).toContain("DREAM_BACKGROUND");
     expect(script).toContain('process.platform === "win32"');
+    expect(script).toContain("trigger?.global"); // profile-wide opt-in honored
     // uninitialized projects must exit before the CLI spawn (session-start latency)
     expect(script.indexOf(".dream")).toBeLessThan(script.indexOf("spawnSync(\"dream\""));
   });
