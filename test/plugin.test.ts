@@ -10,7 +10,7 @@ import { rmSync } from "node:fs";
 
 const ROOT = join(import.meta.dirname, "..");
 
-describe("decideTrigger", () => {
+describe("decideTrigger (ambient)", () => {
   const base = {
     initialized: true,
     enabled: true,
@@ -39,6 +39,42 @@ describe("decideTrigger", () => {
   });
   it("runs at or above the threshold", () => {
     expect(decideTrigger({ ...base, undreamed: 3 }).action).toBe("run");
+  });
+});
+
+describe("decideTrigger (--now, the /dream command)", () => {
+  const base = {
+    initialized: true,
+    enabled: false, // ambient off — /dream must still work
+    minSessions: 3,
+    undreamed: 1,
+    pendingBranches: 0,
+    lockHeld: false,
+  };
+  const now = { now: true };
+
+  it("runs with any backlog even when ambient is disabled", () => {
+    expect(decideTrigger(base, now).action).toBe("run");
+  });
+  it("hints at setup for uninitialized projects instead of staying silent", () => {
+    const d = decideTrigger({ ...base, initialized: false }, now);
+    expect(d.action).toBe("info");
+    expect((d as { message: string }).message).toContain("/dream:setup");
+  });
+  it("pending reviews take precedence over a held lock (same order as ambient)", () => {
+    const d = decideTrigger({ ...base, pendingBranches: 2, lockHeld: true }, now);
+    expect(d.action).toBe("remind");
+    expect((d as { message: string }).message).toContain("/dream:review");
+  });
+  it("reports an in-progress run", () => {
+    const d = decideTrigger({ ...base, lockHeld: true }, now);
+    expect(d.action).toBe("info");
+    expect((d as { message: string }).message).toContain("already in progress");
+  });
+  it("reports an empty backlog", () => {
+    const d = decideTrigger({ ...base, undreamed: 0 }, now);
+    expect(d.action).toBe("info");
+    expect((d as { message: string }).message).toContain("nothing to dream about");
   });
 });
 
@@ -108,6 +144,35 @@ describe("manifest drift protection", () => {
     expect(market.plugins[0].name).toBe(standard.name);
   });
 
+});
+
+describe("trigger.mjs execution (fast path behavior)", () => {
+  function runHook(payload: object, shimDir: string): string {
+    const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+    return execFileSync("node", [join(ROOT, "plugin/hooks/trigger.mjs")], {
+      input: JSON.stringify(payload),
+      env: { ...process.env, PATH: `${shimDir}:${process.env.PATH}` },
+      encoding: "utf8",
+    });
+  }
+
+  it("skips the CLI entirely for uninitialized projects, invokes it for initialized ones", () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, chmodSync } = require("node:fs") as typeof import("node:fs");
+    const { tmpdir } = require("node:os") as typeof import("node:os");
+    const tmp = mkdtempSync(join(tmpdir(), "dream-hook-"));
+    // fake `dream` CLI that announces itself if invoked
+    writeFileSync(join(tmp, "dream"), "#!/bin/sh\necho SHIM-CALLED\n");
+    chmodSync(join(tmp, "dream"), 0o755);
+    // initialized project
+    const proj = join(tmp, "proj");
+    mkdirSync(join(proj, ".dream"), { recursive: true });
+    writeFileSync(join(proj, ".dream", "config.json"), "{}");
+
+    expect(runHook({ cwd: join(tmp, "not-a-project") }, tmp)).toBe(""); // fast path: no spawn
+    expect(runHook({ cwd: proj }, tmp)).toContain("SHIM-CALLED"); // opted-in: CLI invoked
+    expect(runHook({ workspace: { current_dir: proj } }, tmp)).toContain("SHIM-CALLED"); // fallback field
+    expect(runHook({ cwd: 42 }, tmp)).toBe(""); // type-trust guard
+  });
 });
 
 describe("plugin scaffold validity (schema-drift canary)", () => {

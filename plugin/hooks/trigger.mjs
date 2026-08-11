@@ -20,7 +20,9 @@ process.stdin.on("end", () => {
   // one existsSync instead of paying a second node startup for the CLI.
   try {
     const payload = JSON.parse(input.toString("utf8"));
-    const cwd = typeof payload?.cwd === "string" ? payload.cwd : undefined;
+    // Same fallback chain as the CLI's hookPayloadProject — keep in sync.
+    const candidate = payload?.cwd ?? payload?.workspace?.current_dir;
+    const cwd = typeof candidate === "string" && candidate.trim() ? candidate : undefined;
     if (!cwd || !existsSync(join(cwd, ".dream", "config.json"))) process.exit(0);
   } catch {
     process.exit(0); // unparseable payload — nothing sensible to trigger

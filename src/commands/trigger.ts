@@ -9,37 +9,62 @@ import { loadState } from "../state.js";
 
 export type TriggerDecision =
   | { action: "none" }
+  | { action: "info"; message: string } // explicit-mode outcomes that don't spawn
   | { action: "remind"; message: string }
   | { action: "run"; message: string };
 
 /**
- * Pure decision logic for the SessionStart hook. Opt-in by design: a project
- * that never ran `dream init` (no project config) is never dreamed —
- * background runs cost real money.
+ * Pure decision logic for BOTH trigger paths, policy encoded once (Codex
+ * review finding — no divergent orderings between ambient and explicit).
+ *
+ * Ambient (hook): opt-in by design — a project that never ran `dream init`
+ * or never enabled ambient dreaming is silently skipped; background runs
+ * cost real money.
+ *
+ * Explicit (`--now`, the /dream command): the invocation itself is consent,
+ * so the enable gate and session threshold are waived — but init is still
+ * required, pending reviews take precedence over everything (fresh proposals
+ * are worth more than another run), and a held lock means a run is already
+ * dreaming.
  */
-export function decideTrigger(input: {
-  initialized: boolean;
-  enabled: boolean;
-  minSessions: number;
-  undreamed: number;
-  pendingBranches: number;
-  lockHeld: boolean;
-}): TriggerDecision {
-  if (!input.initialized || !input.enabled) return { action: "none" };
+export function decideTrigger(
+  input: {
+    initialized: boolean;
+    enabled: boolean;
+    minSessions: number;
+    undreamed: number;
+    pendingBranches: number;
+    lockHeld: boolean;
+  },
+  opts: { now?: boolean } = {},
+): TriggerDecision {
+  const now = opts.now === true;
+  if (!input.initialized) {
+    return now
+      ? { action: "info", message: "dream: project not set up — run /dream:setup (or `dream init`) first" }
+      : { action: "none" };
+  }
+  if (!input.enabled && !now) return { action: "none" };
   if (input.pendingBranches > 0) {
     return {
       action: "remind",
       message: `🌙 dream: ${input.pendingBranches} proposal branch(es) awaiting review — /dream:review`,
     };
   }
-  if (input.lockHeld) return { action: "none" };
-  if (input.undreamed >= input.minSessions) {
+  if (input.lockHeld) {
+    return now
+      ? { action: "info", message: "💤 dream: a dreaming run is already in progress" }
+      : { action: "none" };
+  }
+  if (input.undreamed >= (now ? 1 : input.minSessions)) {
     return {
       action: "run",
       message: `💤 dream: dreaming over ${input.undreamed} session(s) in the background`,
     };
   }
-  return { action: "none" };
+  return now
+    ? { action: "info", message: "dream: nothing to dream about — no un-dreamed sessions in the window" }
+    : { action: "none" };
 }
 
 export async function gatherTriggerInput(
@@ -109,33 +134,11 @@ export async function triggerCommand(
   if (process.env.DREAM_BACKGROUND === "1") return;
   const config = loadConfig(projectPath);
   const input = await gatherTriggerInput(projectPath, config, { full: opts.now });
-
-  // --now (the /dream command): an explicit user request IS consent, so it
-  // bypasses the ambient-enable gate and the session threshold — but still
-  // requires init (there must be a memory store), respects the run lock, and
-  // defers to pending reviews.
-  if (opts.now) {
-    if (!input.initialized) {
-      console.log("dream: project not set up — run /dream:setup (or `dream init`) first");
-      return;
-    }
-    input.enabled = true;
-    input.minSessions = 1;
-    if (input.lockHeld) {
-      console.log("💤 dream: a dreaming run is already in progress");
-      return;
-    }
-    if (input.undreamed === 0 && input.pendingBranches === 0) {
-      console.log("dream: nothing to dream about — no un-dreamed sessions in the window");
-      return;
-    }
-  }
-
-  const decision = decideTrigger(input);
+  const decision = decideTrigger(input, { now: opts.now });
 
   if (decision.action === "none") return; // silent — hook adds nothing to context
   console.log(decision.message);
-  if (decision.action === "remind") return;
+  if (decision.action !== "run") return;
 
   // Detached background run: survives the hook process, logs to a file.
   const logDir = join(dreamHome(), "runs");
